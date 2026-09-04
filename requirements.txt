@@ -1,0 +1,18 @@
+# InternHub - dependencias da fundacao (Pedro Ribeiro, secao 3.1).
+# Os proximos devs ADICIONAM as suas libs aqui, sem remover estas.
+# Instalar com: pip install -r requirements.txt
+
+sqlalchemy>=2.0,<3.0     # biblioteca principal do projeto (ORM)
+fastapi>=0.115,<1.0      # API que cobre todo o sistema
+uvicorn>=0.30,<1.0       # servidor que roda a API
+pydantic>=2.8,<3.0       # validacao dos payloads da API
+streamlit>=1.38,<2.0     # dashboard
+requests>=2.32,<3.0      # o Streamlit fala com a API por HTTP
+
+# Proximas fases (descomentar quando o dono da parte comecar):
+# matplotlib   # Pietro (3.3)        - graficos do relatorio
+# openai       # Arthur (3.5)        - assistente de IA
+# fpdf2        # Arthur (3.5)        - exportacao em PDF
+# openpyxl     # Arthur (3.5)        - exportacao em Excel
+# pytest       # Arthur (3.5)        - testes
+# slowapi      # Miguel (fase final) - rate limiting
