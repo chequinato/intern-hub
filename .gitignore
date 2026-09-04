@@ -1,0 +1,21 @@
+# Banco gerado em runtime - cada pessoa tem o seu, nao versionar.
+banco/dados.db
+*.db
+
+# Segredos
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Ambiente
+.streamlit/secrets.toml
+.DS_Store
+
+# Ferramentas locais (nao fazem parte do projeto)
+.serena/
+.claude/
