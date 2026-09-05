@@ -140,14 +140,20 @@ def seletor_de_estagiario(estagiarios: list) -> None:
 
 def menu_principal() -> None:
     """Esqueleto do menu. Cada dev liga a sua pagina aqui quando terminar."""
-    st.sidebar.title("Menu")
-    st.sidebar.caption(f"Estagiário selecionado: #{st.session_state['estagiario_id']}")
+    from paginas import registro, saldo  # Gustavo (3.2) - paginas ja prontas
 
-    # Conforme cada PR for mergeado, troque o item por uma chamada a pagina:
-    #   from paginas import registro; registro.mostrar(estagiario_id)
+    st.sidebar.title("Menu")
+    estagiario_id = st.session_state["estagiario_id"]
+    st.sidebar.caption(f"Estagiário selecionado: #{estagiario_id}")
+
+    # Paginas ja implementadas: cada uma expoe mostrar(estagiario_id).
+    paginas_prontas = {
+        "Registrar ponto": registro.mostrar,
+        "Ver saldo": saldo.mostrar,
+    }
+    # Conforme cada PR for mergeado, mova o item daqui para paginas_prontas:
+    #   from paginas import relatorio; relatorio.mostrar(estagiario_id)
     paginas_futuras = {
-        "Registrar ponto": "Gustavo (3.2) - paginas/registro.py",
-        "Ver saldo": "Gustavo (3.2) - paginas/saldo.py",
         "Relatório mensal": "Pietro (3.3) - paginas/relatorio.py",
         "Simular cenário": "Pietro (3.3) - paginas/simulacao.py",
         "Solicitações": "Pedro Henrique (3.4) - paginas/solicitacoes.py",
@@ -155,13 +161,19 @@ def menu_principal() -> None:
         "Auditoria": "Pedro Henrique (3.4) - paginas/auditoria.py",
         "Assistente": "Arthur (3.5) - paginas/assistente.py",
     }
-    escolha = st.sidebar.radio("Ir para", ["Início", *paginas_futuras])
+    escolha = st.sidebar.radio(
+        "Ir para", ["Início", *paginas_prontas, *paginas_futuras]
+    )
 
     if escolha == "Início":
         st.info(
-            "Fundação no ar: cadastro e seleção de estagiários funcionando. "
-            "As demais páginas entram conforme cada dev finalizar a sua parte."
+            "Fundação + registro/saldo no ar. As demais páginas entram "
+            "conforme cada dev finalizar a sua parte."
         )
+        return
+
+    if escolha in paginas_prontas:
+        paginas_prontas[escolha](estagiario_id)
         return
 
     st.warning(f"Página ainda não implementada — responsável: {paginas_futuras[escolha]}")
