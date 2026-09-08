@@ -14,11 +14,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from api.rotas import estagiarios, registros, saldo
+from api.rotas import estagiarios, registros, saldo, feriados, simulacoes, relatorio
 from banco.conexao import criar_tabelas
 
 # Os proximos devs importam o router deles aqui:
-# from api.rotas import feriados, relatorio, simulacoes      # Pietro (3.3)
+# from api.rotas import feriados, relatorio, simulacoes      # Pietro (3.3) feito!
 # from api.rotas import solicitacoes                         # Pedro Henrique (3.4)
 # from api.rotas import assistente                           # Arthur (3.5)
 
@@ -43,6 +43,9 @@ app = FastAPI(
 app.include_router(estagiarios.router)
 app.include_router(registros.router)  # Gustavo (3.2) - POST/GET /registros
 app.include_router(saldo.router)  # Gustavo (3.2) - GET /saldo/{id}
+app.include_router(feriados.router) # Pietro (3.3) - POST/GET /feriados
+app.include_router(simulacoes.router) # Pietro (3.3) - POST /simulacoes
+app.include_router(relatorio.router) # Pietro (3.3) - GET /relatorio/{id}
 
 # --- Rotas dos proximos devs -------------------------------------------------
 # Descomente a linha correspondente quando o PR daquele modulo for mergeado.
