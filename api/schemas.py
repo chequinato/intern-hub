@@ -10,7 +10,7 @@ e o FastAPI devolve 422 sozinho com a explicacao do erro.
 """
 
 from datetime import date, time
-
+from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from modelos.configuracao import (
@@ -147,3 +147,41 @@ class SaldoResponse(BaseModel):
     em_alerta: bool
     limite_alerta: float
     dias_registrados: int
+
+
+# Schemas para Feriados
+class FeriadoCreate(BaseModel):
+    data: date
+    descricao: str
+
+class FeriadoResponse(FeriadoCreate):
+    id: int
+    class Config:
+        orm_mode = True
+
+# Schemas para Simulação
+class SimulacaoRequest(BaseModel):
+    estagiario_id: int
+    dias_falta: int
+    horas_atraso: float = 0.0
+
+class SimulacaoResponse(BaseModel):
+    saldo_atual: float
+    saldo_projetado: float
+    impacto_horas: float
+
+# Schemas para Relatório
+class RelatorioDiario(BaseModel):
+    data: date
+    horas_trabalhadas: float
+    saldo_do_dia: float
+
+class RelatorioMensalResponse(BaseModel):
+    mes: int
+    ano: int
+    total_horas_trabalhadas: float
+    dias_uteis_trabalhados: int
+    faltas: int
+    saldo_acumulado: float
+    aviso_vencimento: Optional[str]
+    evolucao_diaria: List[RelatorioDiario]
