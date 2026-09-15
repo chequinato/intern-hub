@@ -17,7 +17,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from api.schemas import EstagiarioCreate, EstagiarioResponse
+from api.schemas import (
+    EstagiarioCreate,
+    EstagiarioGestorUpdate,
+    EstagiarioResponse,
+)
 from banco.conexao import get_session
 from modelos import Configuracao, Estagiario, Gestor
 
@@ -95,4 +99,49 @@ def obter_estagiario(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Estagiario {estagiario_id} nao encontrado.",
         )
+    return estagiario
+
+
+@router.patch(
+    "/{estagiario_id}",
+    response_model=EstagiarioResponse,
+    summary="Define ou troca o gestor responsavel pelo estagiario",
+)
+def vincular_gestor(
+    estagiario_id: int,
+    dados: EstagiarioGestorUpdate,
+    session: Session = Depends(get_session),
+) -> Estagiario:
+    """Acrescentada por Pedro Henrique (secao 3.4).
+
+    Sem esta rota, o gestor so poderia ser escolhido no momento do cadastro
+    do estagiario - e quem ja estava cadastrado antes dos gestores existirem
+    nunca apareceria em nenhuma fila de aprovacao.
+    """
+    estagiario = session.query(Estagiario).filter_by(id=estagiario_id).first()
+    if estagiario is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Estagiario {estagiario_id} nao encontrado.",
+        )
+
+    if dados.gestor_id is not None:
+        gestor = session.query(Gestor).filter_by(id=dados.gestor_id).first()
+        if gestor is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Gestor {dados.gestor_id} nao encontrado.",
+            )
+
+    estagiario.gestor_id = dados.gestor_id
+    try:
+        session.commit()
+    except SQLAlchemyError as erro:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Nao foi possivel atualizar o gestor do estagiario.",
+        ) from erro
+
+    session.refresh(estagiario)
     return estagiario

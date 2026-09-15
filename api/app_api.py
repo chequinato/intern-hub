@@ -14,13 +14,17 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from api.rotas import estagiarios, registros, saldo, feriados, simulacoes, relatorio
+from api.rotas import (
+    estagiarios,
+    feriados,
+    gestores,
+    registros,
+    relatorio,
+    saldo,
+    simulacoes,
+    solicitacoes,
+)
 from banco.conexao import criar_tabelas
-
-# Os proximos devs importam o router deles aqui:
-# from api.rotas import feriados, relatorio, simulacoes      # Pietro (3.3) feito!
-# from api.rotas import solicitacoes                         # Pedro Henrique (3.4)
-# from api.rotas import assistente                           # Arthur (3.5)
 
 
 @asynccontextmanager
@@ -32,28 +36,28 @@ async def ciclo_de_vida(app: FastAPI):
 
 app = FastAPI(
     title="InternHub API",
-    version="0.1.0",
+    version="0.4.0",
     description=(
-        "API do banco de horas de estagio. Nesta fase (fundacao) so as rotas "
-        "de /estagiarios estao no ar."
+        "API do banco de horas de estagio. Cobre cadastro de estagiarios, "
+        "registro de ponto, saldo, relatorio, simulacao, feriados e o fluxo "
+        "de solicitacao de ajuste com aprovacao do gestor."
     ),
     lifespan=ciclo_de_vida,
 )
 
-app.include_router(estagiarios.router)
-app.include_router(registros.router)  # Gustavo (3.2) - POST/GET /registros
-app.include_router(saldo.router)  # Gustavo (3.2) - GET /saldo/{id}
-app.include_router(feriados.router) # Pietro (3.3) - POST/GET /feriados
-app.include_router(simulacoes.router) # Pietro (3.3) - POST /simulacoes
-app.include_router(relatorio.router) # Pietro (3.3) - GET /relatorio/{id}
+# --- Rotas registradas -------------------------------------------------------
+# Cada dev acrescenta a linha do seu modulo quando o PR dele e mergeado.
+app.include_router(estagiarios.router)    # Pedro Ribeiro (3.1)  - /estagiarios
+app.include_router(registros.router)      # Gustavo (3.2)        - /registros
+app.include_router(saldo.router)          # Gustavo (3.2)        - /saldo/{id}
+app.include_router(relatorio.router)      # Pietro (3.3)         - /relatorio/{id}
+app.include_router(simulacoes.router)     # Pietro (3.3)         - /simulacoes
+app.include_router(feriados.router)       # Pietro (3.3)         - /feriados
+app.include_router(gestores.router)       # Pedro Henrique (3.4) - /gestores
+app.include_router(solicitacoes.router)   # Pedro Henrique (3.4) - /solicitacoes
 
-# --- Rotas dos proximos devs -------------------------------------------------
-# Descomente a linha correspondente quando o PR daquele modulo for mergeado.
-# app.include_router(relatorio.router)      # Pietro  (3.3)  - GET  /relatorio/{id}
-# app.include_router(simulacoes.router)     # Pietro  (3.3)  - POST /simulacoes
-# app.include_router(feriados.router)       # Pietro  (3.3)  - POST/GET /feriados
-# app.include_router(solicitacoes.router)   # P.Henrique(3.4)- /solicitacoes
-# app.include_router(assistente.router)     # Arthur  (3.5)  - POST /assistente/perguntar
+# Ainda por vir:
+# app.include_router(assistente.router)   # Arthur (3.5) - POST /assistente/perguntar
 # -----------------------------------------------------------------------------
 
 
