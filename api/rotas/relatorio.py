@@ -5,6 +5,7 @@ from datetime import date
 import calendar
 
 from banco.conexao import get_session
+from modelos.configuracao import META_HORAS_DIARIA_PADRAO, Configuracao
 from modelos.registro_ponto import RegistroPonto
 from api.schemas import RelatorioMensalResponse
 from servicos.saldo import calcular_saldo_acumulado
@@ -23,6 +24,17 @@ def obter_relatorio(estagiario_id: int, mes: int, ano: int, session: Session = D
         extract('year', RegistroPonto.data) == ano
     ).order_by(RegistroPonto.data).all()
     
+    # A meta diaria vem da configuracao DESTE estagiario. Antes estava fixa em
+    # 6.0 no codigo, o que dava saldo diario errado para quem tem outra meta.
+    configuracao = (
+        session.query(Configuracao).filter_by(estagiario_id=estagiario_id).first()
+    )
+    meta_diaria = (
+        configuracao.meta_horas_diaria
+        if configuracao is not None
+        else META_HORAS_DIARIA_PADRAO
+    )
+
     total_horas = 0.0
     evolucao = []
     
@@ -36,7 +48,7 @@ def obter_relatorio(estagiario_id: int, mes: int, ano: int, session: Session = D
         evolucao.append({
             "data": reg.data,
             "horas_trabalhadas": horas_dia,
-            "saldo_do_dia": horas_dia - 6.0 # Assumindo 6h de meta diária padrão
+            "saldo_do_dia": round(horas_dia - meta_diaria, 2)
         })
         
     # 3. LÓGICA DE FALTAS (O coração do seu requisito!)
@@ -61,7 +73,7 @@ def obter_relatorio(estagiario_id: int, mes: int, ano: int, session: Session = D
     return {
         "mes": mes,
         "ano": ano,
-        "total_horas_trabalhadas": total_horas,
+        "total_horas_trabalhadas": round(total_horas, 2),
         "dias_uteis_trabalhados": len(registros_mes),
         "faltas": faltas, # Faltas calculadas perfeitamente!
         "saldo_acumulado": saldo_atual,

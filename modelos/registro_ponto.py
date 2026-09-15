@@ -35,5 +35,15 @@ class RegistroPonto(Base):
 
     estagiario = relationship("Estagiario", back_populates="registros")
 
+    # Pedro Henrique (secao 3.4): os pedidos de ajuste feitos sobre este dia.
+    # O cascade acompanha o do Estagiario: se um registro deixa de existir, os
+    # pedidos que apontavam para ele tambem somem, em vez de virar lixo com
+    # ForeignKey quebrada.
+    solicitacoes = relationship(
+        "SolicitacaoAjuste",
+        back_populates="registro",
+        cascade="all, delete-orphan",
+    )
+
     def __repr__(self) -> str:
         return f"<RegistroPonto id={self.id} estagiario_id={self.estagiario_id} data={self.data}>"
