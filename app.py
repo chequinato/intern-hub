@@ -1,82 +1,52 @@
 """InternHub - dashboard do banco de horas (Streamlit).
 
 Modulo dono: Pedro Ribeiro (Desenvolvedor 1 - fundacao).
+Seletor de perfil e menu do gestor: Pedro Henrique (secao 3.4).
 
 Esta tela e um CLIENTE HTTP PURO: ela nao importa modelos/, servicos/ nem
-banco/. Tudo que precisa do banco passa por uma chamada a API (requests).
-Quem alterar este arquivo deve manter essa regra - foi a decisao fechada da
-secao 7 do README (API cobrindo todo o sistema, Escala 2).
+banco/. Tudo que precisa do banco passa por uma chamada a API (paginas/
+cliente_api.py). Quem alterar este arquivo deve manter essa regra - foi a
+decisao fechada da secao 7 do README (API cobrindo todo o sistema, Escala 2).
+
+O arquivo tem duas metades, uma por perfil:
+
+    "Sou estagiario" -> escolhe uma pessoa e abre as telas dela (ponto,
+                        saldo, relatorio, simulacao, solicitacoes, auditoria)
+    "Sou gestor"     -> escolhe um gestor e abre a fila de aprovacoes dele
+
+O seletor de perfil NAO e seguranca: ele so decide qual menu aparece. Quem
+protege a API de verdade e a autenticacao por token da fase final do Miguel
+(itens 21 e 22 do README).
 
 Como rodar (a API precisa estar no ar antes):
     1) uvicorn api.app_api:app --reload
     2) streamlit run app.py
 """
 
-import os
-
-import requests
 import streamlit as st
 
-# Endereco da API. Pode ser trocado pela variavel de ambiente sem mexer no
-# codigo (util se alguem do grupo rodar a API em outra porta).
-API_URL = os.getenv("INTERNHUB_API_URL", "http://localhost:8000").rstrip("/")
-TIMEOUT_SEGUNDOS = 5
-
-MSG_API_FORA = (
-    f"Nao consegui falar com a API em {API_URL}.\n\n"
-    "Abra outro terminal, na pasta do projeto, e rode:\n\n"
-    "`uvicorn api.app_api:app --reload`"
+from paginas import (
+    aprovacoes,
+    auditoria,
+    cliente_api,
+    registro,
+    relatorio,
+    saldo,
+    simulacao,
+    solicitacoes,
 )
 
 st.set_page_config(page_title="InternHub", page_icon=":clock3:", layout="centered")
 
 
-# --- Conversa com a API ------------------------------------------------------
+# --- Telas do perfil estagiario ----------------------------------------------
 
 
-def listar_estagiarios():
-    """GET /estagiarios. Devolve (lista, mensagem_de_erro)."""
-    try:
-        resposta = requests.get(f"{API_URL}/estagiarios", timeout=TIMEOUT_SEGUNDOS)
-    except requests.exceptions.ConnectionError:
-        return None, MSG_API_FORA
-    except requests.exceptions.RequestException as erro:
-        return None, f"Falha ao consultar a API: {erro}"
+def formulario_cadastro(chave_do_form: str, gestores: list) -> None:
+    """Formulario de cadastro de estagiario, reaproveitado nos dois cenarios."""
+    opcoes_gestor = [None] + [gestor["id"] for gestor in gestores]
+    nome_do_gestor = {gestor["id"]: gestor["nome"] for gestor in gestores}
 
-    if resposta.status_code != 200:
-        return None, f"A API respondeu {resposta.status_code}: {resposta.text}"
-    return resposta.json(), None
-
-
-def cadastrar_estagiario(nome, meta_diaria, meta_semanal):
-    """POST /estagiarios. Devolve (estagiario_criado, mensagem_de_erro)."""
-    payload = {
-        "nome": nome,
-        "meta_horas_diaria": meta_diaria,
-        "meta_horas_semanal": meta_semanal,
-    }
-    try:
-        resposta = requests.post(
-            f"{API_URL}/estagiarios", json=payload, timeout=TIMEOUT_SEGUNDOS
-        )
-    except requests.exceptions.ConnectionError:
-        return None, MSG_API_FORA
-    except requests.exceptions.RequestException as erro:
-        return None, f"Falha ao falar com a API: {erro}"
-
-    if resposta.status_code == 201:
-        return resposta.json(), None
-    if resposta.status_code == 422:
-        # 422 e o erro de validacao do Pydantic (ex: nome com 1 letra).
-        return None, "Dados invalidos. Confira o nome e as metas de horas."
-    return None, f"A API respondeu {resposta.status_code}: {resposta.text}"
-
-
-# --- Telas -------------------------------------------------------------------
-
-
-def formulario_cadastro(chave_do_form: str) -> None:
-    """Formulario de cadastro, reaproveitado nos dois cenarios da tela."""
     with st.form(chave_do_form):
         nome = st.text_input("Nome do estagiário", max_chars=120)
         coluna_a, coluna_b = st.columns(2)
@@ -90,6 +60,14 @@ def formulario_cadastro(chave_do_form: str) -> None:
             value=30.0,
             step=1.0,
         )
+        gestor_id = st.selectbox(
+            "Gestor responsável",
+            options=opcoes_gestor,
+            format_func=lambda id_: (
+                "Sem gestor por enquanto" if id_ is None else nome_do_gestor[id_]
+            ),
+            help="É o gestor escolhido aqui que vai receber os seus pedidos de ajuste.",
+        )
         enviou = st.form_submit_button("Cadastrar")
 
     if not enviou:
@@ -99,7 +77,13 @@ def formulario_cadastro(chave_do_form: str) -> None:
         st.warning("Digite um nome com pelo menos 2 caracteres.")
         return
 
-    criado, erro = cadastrar_estagiario(nome.strip(), meta_diaria, meta_semanal)
+    payload = {
+        "nome": nome.strip(),
+        "meta_horas_diaria": meta_diaria,
+        "meta_horas_semanal": meta_semanal,
+        "gestor_id": gestor_id,
+    }
+    criado, erro = cliente_api.post("/estagiarios", payload)
     if erro:
         st.error(erro)
         return
@@ -111,7 +95,7 @@ def formulario_cadastro(chave_do_form: str) -> None:
     st.rerun()
 
 
-def seletor_de_estagiario(estagiarios: list) -> None:
+def seletor_de_estagiario(estagiarios: list, gestores: list) -> None:
     """Dropdown 'Selecione seu nome' - o coracao do multiusuario."""
     ids = [pessoa["id"] for pessoa in estagiarios]
     por_id = {pessoa["id"]: pessoa for pessoa in estagiarios}
@@ -134,63 +118,186 @@ def seletor_de_estagiario(estagiarios: list) -> None:
     coluna_a.metric("Meta diária", f"{configuracao.get('meta_horas_diaria', 0):.1f} h")
     coluna_b.metric("Meta semanal", f"{configuracao.get('meta_horas_semanal', 0):.1f} h")
 
+    _aviso_e_troca_de_gestor(pessoa, gestores)
+
     with st.expander("Cadastrar novo estagiário"):
-        formulario_cadastro("form_cadastro_extra")
+        formulario_cadastro("form_cadastro_extra", gestores)
 
 
-def menu_principal() -> None:
-    """Esqueleto do menu. Cada dev liga a sua pagina aqui quando terminar."""
-    from paginas import registro, saldo  # Gustavo (3.2) - paginas ja prontas
+def _aviso_e_troca_de_gestor(pessoa: dict, gestores: list) -> None:
+    """Mostra o gestor responsavel e permite trocar (PATCH /estagiarios/{id}).
 
-    st.sidebar.title("Menu")
-    estagiario_id = st.session_state["estagiario_id"]
-    st.sidebar.caption(f"Estagiário selecionado: #{estagiario_id}")
-
-    # Paginas ja implementadas: cada uma expoe mostrar(estagiario_id).
-    paginas_prontas = {
-        "Registrar ponto": registro.mostrar,
-        "Ver saldo": saldo.mostrar,
-    }
-    # Conforme cada PR for mergeado, mova o item daqui para paginas_prontas:
-    #   from paginas import relatorio; relatorio.mostrar(estagiario_id)
-    paginas_futuras = {
-        "Relatório mensal": "Pietro (3.3) - paginas/relatorio.py",
-        "Simular cenário": "Pietro (3.3) - paginas/simulacao.py",
-        "Solicitações": "Pedro Henrique (3.4) - paginas/solicitacoes.py",
-        "Aprovações": "Pedro Henrique (3.4) - paginas/aprovacoes.py",
-        "Auditoria": "Pedro Henrique (3.4) - paginas/auditoria.py",
-        "Assistente": "Arthur (3.5) - paginas/assistente.py",
-    }
-    escolha = st.sidebar.radio(
-        "Ir para", ["Início", *paginas_prontas, *paginas_futuras]
-    )
-
-    if escolha == "Início":
+    Acrescentado por Pedro Henrique (secao 3.4): sem gestor vinculado, os
+    pedidos de ajuste desta pessoa nao cairiam na fila de ninguem.
+    """
+    if not gestores:
         st.info(
-            "Fundação + registro/saldo no ar. As demais páginas entram "
-            "conforme cada dev finalizar a sua parte."
+            "Nenhum gestor cadastrado ainda. Entre no perfil **Sou gestor** "
+            "para cadastrar um — sem gestor, ninguém aprova os ajustes de ponto."
         )
         return
 
-    if escolha in paginas_prontas:
-        paginas_prontas[escolha](estagiario_id)
+    nome_do_gestor = {gestor["id"]: gestor["nome"] for gestor in gestores}
+    atual = pessoa.get("gestor_id")
+
+    if atual is None:
+        st.warning(
+            "Você ainda não tem gestor responsável. Escolha um abaixo para "
+            "poder pedir ajustes de ponto."
+        )
+
+    with st.expander(f"Gestor responsável: {nome_do_gestor.get(atual, 'nenhum')}"):
+        opcoes = [None] + list(nome_do_gestor)
+        escolhido = st.selectbox(
+            "Trocar gestor",
+            options=opcoes,
+            index=opcoes.index(atual) if atual in opcoes else 0,
+            format_func=lambda id_: (
+                "Sem gestor" if id_ is None else nome_do_gestor[id_]
+            ),
+            key="troca_de_gestor",
+        )
+        if st.button("Salvar gestor", key="botao_troca_gestor"):
+            _, erro = cliente_api.patch(
+                f"/estagiarios/{pessoa['id']}", {"gestor_id": escolhido}
+            )
+            if erro:
+                st.error(erro)
+            else:
+                st.success("Gestor atualizado.")
+                st.rerun()
+
+
+def menu_do_estagiario(estagiario_id: int) -> None:
+    """Menu lateral do perfil estagiario."""
+    st.sidebar.caption(f"Estagiário selecionado: #{estagiario_id}")
+
+    # Cada pagina expoe mostrar(estagiario_id) - esse e o contrato entre o
+    # menu e as telas, e e o que permite listar tudo em um dicionario.
+    paginas = {
+        "Registrar ponto": registro.mostrar,
+        "Ver saldo": saldo.mostrar,
+        "Relatório mensal": relatorio.mostrar,
+        "Simular cenário": simulacao.mostrar,
+        "Solicitações": solicitacoes.mostrar,
+        "Auditoria": auditoria.mostrar,
+    }
+
+    escolha = st.sidebar.radio("Ir para", ["Início", *paginas])
+    if escolha == "Início":
+        st.info(
+            "Escolha uma tela no menu à esquerda. O assistente de IA "
+            "(Arthur, seção 3.5) ainda está por vir."
+        )
         return
 
-    st.warning(f"Página ainda não implementada — responsável: {paginas_futuras[escolha]}")
+    paginas[escolha](estagiario_id)
+
+
+# --- Telas do perfil gestor --------------------------------------------------
+
+
+def perfil_gestor() -> None:
+    """Metade da tela dedicada ao gestor: escolher quem e, e abrir a fila.
+
+    Modulo dono: Pedro Henrique (secao 3.4).
+    """
+    gestores, erro = cliente_api.get("/gestores")
+    if erro:
+        st.error(erro)
+        return
+
+    if not gestores:
+        st.info("Nenhum gestor cadastrado ainda. Faça o primeiro cadastro abaixo.")
+        _formulario_cadastro_gestor("form_gestor_inicial")
+        return
+
+    ids = [gestor["id"] for gestor in gestores]
+    por_id = {gestor["id"]: gestor for gestor in gestores}
+    salvo = st.session_state.get("gestor_id")
+    indice = ids.index(salvo) if salvo in ids else 0
+
+    escolhido = st.selectbox(
+        "Selecione seu nome",
+        options=ids,
+        index=indice,
+        format_func=lambda id_: por_id[id_]["nome"],
+    )
+    st.session_state["gestor_id"] = escolhido
+
+    equipe, erro = cliente_api.get("/estagiarios")
+    if erro:
+        st.error(erro)
+        return
+
+    sob_gestao = [pessoa for pessoa in equipe if pessoa.get("gestor_id") == escolhido]
+    st.metric("Estagiários sob sua gestão", len(sob_gestao))
+    if not sob_gestao:
+        st.warning(
+            "Nenhum estagiário está vinculado a você. Peça para eles se "
+            "vincularem no perfil **Sou estagiário**, ou cadastre-os já com "
+            "o seu nome como gestor responsável."
+        )
+
+    with st.expander("Cadastrar novo gestor"):
+        _formulario_cadastro_gestor("form_gestor_extra")
+
+    st.divider()
+
+    st.sidebar.caption(f"Gestor selecionado: #{escolhido}")
+    escolha = st.sidebar.radio("Ir para", ["Aprovações", "Auditoria"])
+    if escolha == "Aprovações":
+        aprovacoes.mostrar(escolhido)
+    else:
+        # Sem estagiario_id: o gestor ve o historico de todo mundo.
+        auditoria.mostrar()
+
+
+def _formulario_cadastro_gestor(chave_do_form: str) -> None:
+    """Formulario de POST /gestores."""
+    with st.form(chave_do_form):
+        nome = st.text_input("Nome do gestor", max_chars=120)
+        enviou = st.form_submit_button("Cadastrar gestor")
+
+    if not enviou:
+        return
+
+    if len(nome.strip()) < 2:
+        st.warning("Digite um nome com pelo menos 2 caracteres.")
+        return
+
+    criado, erro = cliente_api.post("/gestores", {"nome": nome.strip()})
+    if erro:
+        st.error(erro)
+        return
+
+    st.session_state["gestor_id"] = criado["id"]
+    st.success(f"Gestor {criado['nome']} cadastrado!")
+    st.rerun()
 
 
 # --- Fluxo principal ---------------------------------------------------------
 
 st.title("InternHub — Banco de Horas do Estágio")
 
-estagiarios, erro_api = listar_estagiarios()
+# Seletor de perfil (Pedro Henrique, secao 3.4). Fica na barra lateral para
+# nao competir com o conteudo da tela escolhida.
+perfil = st.sidebar.radio("Perfil", ["Sou estagiário", "Sou gestor"])
+st.sidebar.divider()
 
-if erro_api:
-    st.error(erro_api)
-elif not estagiarios:
-    st.info("Nenhum estagiário cadastrado ainda. Faça o primeiro cadastro abaixo.")
-    formulario_cadastro("form_cadastro_inicial")
+if perfil == "Sou gestor":
+    perfil_gestor()
 else:
-    seletor_de_estagiario(estagiarios)
-    st.divider()
-    menu_principal()
+    estagiarios, erro_api = cliente_api.get("/estagiarios")
+    lista_de_gestores, _ = cliente_api.get("/gestores")
+    lista_de_gestores = lista_de_gestores or []
+
+    if erro_api:
+        st.error(erro_api)
+    elif not estagiarios:
+        st.info("Nenhum estagiário cadastrado ainda. Faça o primeiro cadastro abaixo.")
+        formulario_cadastro("form_cadastro_inicial", lista_de_gestores)
+    else:
+        seletor_de_estagiario(estagiarios, lista_de_gestores)
+        st.divider()
+        menu_do_estagiario(st.session_state["estagiario_id"])

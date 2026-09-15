@@ -38,11 +38,15 @@ class Estagiario(Base):
         order_by="RegistroPonto.data",
     )
 
-    # Pedro Henrique (secao 3.4): quando modelos/solicitacao_ajuste.py existir,
-    # descomente a linha abaixo e adicione o back_populates="estagiario" la.
-    # Deixar declarado agora quebraria a inicializacao do SQLAlchemy, porque a
-    # classe SolicitacaoAjuste ainda nao existe.
-    # solicitacoes = relationship("SolicitacaoAjuste", back_populates="estagiario")
+    # Pedro Henrique (secao 3.4): os pedidos de ajuste de ponto desta pessoa.
+    # Apagar o estagiario apaga junto as solicitacoes dele - sem o cascade,
+    # sobrariam linhas apontando para um estagiario que nao existe mais.
+    solicitacoes = relationship(
+        "SolicitacaoAjuste",
+        back_populates="estagiario",
+        cascade="all, delete-orphan",
+        order_by="SolicitacaoAjuste.data_solicitacao",
+    )
 
     def __repr__(self) -> str:
         return f"<Estagiario id={self.id} nome={self.nome!r}>"

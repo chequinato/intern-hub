@@ -73,6 +73,47 @@ def calcular_horas_trabalhadas(
     return round(max(bruto - almoco, 0.0), 2)
 
 
+def validar_ordem_dos_horarios(
+    entrada: time,
+    saida: time | None = None,
+    saida_almoco: time | None = None,
+    retorno_almoco: time | None = None,
+) -> str | None:
+    """Confere se os horarios de um dia fazem sentido entre si.
+
+    Devolve a mensagem do primeiro problema encontrado, ou None se estiver
+    tudo certo. So compara os horarios que vieram preenchidos: um dia com
+    almoco faltando (pendencia) continua sendo considerado valido.
+
+    Esta funcao e usada em DOIS lugares, e por isso mora aqui e nao em cada
+    um deles: o schema RegistroCreate (api/schemas.py) a chama para barrar um
+    registro torto na entrada da API, e o servico de solicitacoes
+    (servicos/solicitacao.py, Pedro Henrique) a chama antes de aprovar um
+    ajuste - para que uma aprovacao nao deixe o registro em um estado que a
+    propria API jamais teria aceitado.
+    """
+    if saida is not None and saida <= entrada:
+        return "a saida precisa ser depois da entrada"
+
+    if saida_almoco is not None and saida_almoco <= entrada:
+        return "a saida para o almoco precisa ser depois da entrada"
+
+    if saida_almoco is not None and saida is not None and saida_almoco >= saida:
+        return "a saida para o almoco precisa ser antes da saida do expediente"
+
+    if (
+        saida_almoco is not None
+        and retorno_almoco is not None
+        and retorno_almoco <= saida_almoco
+    ):
+        return "o retorno do almoco precisa ser depois da saida para o almoco"
+
+    if retorno_almoco is not None and saida is not None and retorno_almoco >= saida:
+        return "o retorno do almoco precisa ser antes da saida do expediente"
+
+    return None
+
+
 def verificar_pendencia_almoco(registro) -> bool:
     """Diz se o registro esta pendente por falta de marcacao do almoco.
 

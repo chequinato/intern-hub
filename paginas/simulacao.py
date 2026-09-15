@@ -1,40 +1,58 @@
+"""Tela do simulador "e se eu faltar / chegar atrasado" (Streamlit).
+
+Modulo dono: Pietro Paruci (Desenvolvedor 3 - secao 3.3).
+
+Cliente HTTP puro: monta o cenario, chama POST /simulacoes e mostra a
+projecao. Nada e gravado - a rota so le o banco.
+"""
+
 import streamlit as st
-import requests
 
-def renderizar():
-    st.title("Simulador de Cenários")
-    st.write("Veja como faltas ou atrasos impactam seu banco de horas atual, sem alterar nada no sistema.")
+from paginas import cliente_api
 
-    estagiario_id = st.session_state.get("estagiario_id")
-    if not estagiario_id:
-        st.warning("Selecione um estagiário no menu principal primeiro.")
+
+def mostrar(estagiario_id: int) -> None:
+    """Renderiza o simulador para o estagiario selecionado."""
+    st.header("Simulador de cenários")
+    st.write(
+        "Veja como faltas ou atrasos impactam seu banco de horas atual, "
+        "sem alterar nada no sistema."
+    )
+
+    coluna_a, coluna_b = st.columns(2)
+    dias_falta = coluna_a.number_input(
+        "Dias de falta inteiros", min_value=0, value=0, step=1
+    )
+    horas_atraso = coluna_b.number_input(
+        "Horas de atraso/saída antecipada", min_value=0.0, value=0.0, step=0.5
+    )
+
+    if not st.button("Simular cenário"):
         return
 
-    col1, col2 = st.columns(2)
-    with col1:
-        dias_falta = st.number_input("Dias de falta inteiros", min_value=0, value=0, step=1)
-    with col2:
-        horas_atraso = st.number_input("Horas de atraso/saída antecipada", min_value=0.0, value=0.0, step=0.5)
+    payload = {
+        "estagiario_id": estagiario_id,
+        "dias_falta": dias_falta,
+        "horas_atraso": horas_atraso,
+    }
+    dados, erro = cliente_api.post("/simulacoes", payload)
+    if erro:
+        st.error(erro)
+        return
 
-    if st.button("Simular Cenário"):
-        payload = {
-            "estagiario_id": estagiario_id,
-            "dias_falta": dias_falta,
-            "horas_atraso": horas_atraso
-        }
-        
-        # A porta 8000 é padrão do FastAPI
-        resposta = requests.post("http://localhost:8000/simulacoes/", json=payload)
-        
-        if resposta.status_code == 200:
-            dados = resposta.json()
-            st.divider()
-            st.subheader("Resultado da Projeção")
-            
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Saldo Atual", f"{dados['saldo_atual']}h")
-            c2.metric("Impacto (Horas descontadas)", f"{dados['impacto_horas']}h")
-            c3.metric("Saldo Projetado", f"{dados['saldo_projetado']}h", 
-                      delta=dados['impacto_horas'], delta_color="normal")
-        else:
-            st.error("Erro ao comunicar com a API. Verifique se o Uvicorn está rodando.")
+    st.divider()
+    st.subheader("Resultado da projeção")
+
+    coluna_a, coluna_b, coluna_c = st.columns(3)
+    coluna_a.metric("Saldo atual", f"{dados['saldo_atual']:+.2f} h")
+    coluna_b.metric("Impacto do cenário", f"{dados['impacto_horas']:+.2f} h")
+    coluna_c.metric(
+        "Saldo projetado",
+        f"{dados['saldo_projetado']:+.2f} h",
+        delta=f"{dados['impacto_horas']:+.2f} h",
+    )
+
+    if dados["saldo_projetado"] < 0:
+        st.warning("Nesse cenário você ficaria devendo horas.")
+    else:
+        st.success("Mesmo nesse cenário você continuaria com crédito de horas.")
