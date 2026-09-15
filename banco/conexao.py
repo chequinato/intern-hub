@@ -11,9 +11,11 @@ sessionmaker/Session.
 """
 
 from pathlib import Path
+from typing import Generator
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 # O banco fica ao lado deste arquivo (banco/dados.db). Usar caminho absoluto
 # derivado do __file__ garante que a API e o Streamlit apontem para o mesmo
@@ -22,26 +24,29 @@ PASTA_BANCO = Path(__file__).resolve().parent
 CAMINHO_BANCO = PASTA_BANCO / "dados.db"
 URL_BANCO = f"sqlite:///{CAMINHO_BANCO}"
 
-engine = create_engine(
-    URL_BANCO,
-    echo=False,
-    # O Uvicorn atende requisicoes em threads diferentes; sem isso o SQLite
-    # recusa a conexao criada em outra thread.
-    connect_args={"check_same_thread": False},
-)
+
+def _criar_engine() -> Engine:
+    """Cria o engine do banco com ajustes do SQLite para a aplicacao."""
+    engine = create_engine(
+        URL_BANCO,
+        echo=False,
+        # O Uvicorn atende requisicoes em threads diferentes; sem isso o SQLite
+        # recusa a conexao criada em outra thread.
+        connect_args={"check_same_thread": False},
+    )
+
+    @event.listens_for(engine, "connect")
+    def _ativar_chaves_estrangeiras(conexao, _registro):
+        """Liga a checagem de ForeignKey no SQLite."""
+        cursor = conexao.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    return engine
 
 
-@event.listens_for(engine, "connect")
-def _ativar_chaves_estrangeiras(conexao, _registro):
-    """Liga a checagem de ForeignKey no SQLite.
-
-    Por padrao o SQLite ACEITA um estagiario_id que nao existe. Sem este
-    PRAGMA, os ForeignKey dos modelos seriam so documentacao.
-    """
-    cursor = conexao.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
-
+# Engine compartilhado por toda a aplicacao.
+engine = _criar_engine()
 
 # Classe base da qual todos os modelos de modelos/ herdam.
 Base = declarative_base()
@@ -61,7 +66,7 @@ def criar_tabelas() -> None:
     Base.metadata.create_all(bind=engine)
 
 
-def get_session():
+def get_session() -> Generator[Session, None, None]:
     """Abre uma sessao, entrega para quem pediu e garante o fechamento.
 
     Usado como dependencia do FastAPI: `session: Session = Depends(get_session)`.
