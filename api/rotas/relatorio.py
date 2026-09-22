@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import extract
 from datetime import date
+from typing import Literal
 import calendar
 
 from banco.conexao import get_session
@@ -12,6 +13,7 @@ from servicos.saldo import calcular_saldo_acumulado
 from servicos.vencimento import verificar_vencimento
 from servicos.calculo import calcular_horas_trabalhadas
 from servicos.feriados import eh_dia_util
+from servicos.exportar_relatorio import gerar_relatorio_excel, gerar_relatorio_pdf
 
 router = APIRouter(prefix="/relatorio", tags=["Relatório"])
 
@@ -80,3 +82,44 @@ def obter_relatorio(estagiario_id: int, mes: int, ano: int, session: Session = D
         "aviso_vencimento": aviso,
         "evolucao_diaria": evolucao
     }
+
+
+@router.get(
+    "/{estagiario_id}/exportar",
+    summary="Exporta o relatório mensal em PDF ou Excel (funcionalidade 9)",
+)
+def exportar_relatorio(
+    estagiario_id: int,
+    mes: int,
+    ano: int,
+    formato: Literal["pdf", "excel"] = Query(
+        ..., description="Formato do arquivo: pdf ou excel"
+    ),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Reaproveita obter_relatorio (mesma função, chamada direto - nao via
+    HTTP) pra nao duplicar a lógica de faltas/evolução, e só formata o
+    resultado dela em PDF ou Excel via servicos/exportar_relatorio.py.
+
+    Sem response_model de proposito, igual a rota de PDF de solicitacoes:
+    o retorno aqui e o arquivo bruto, nao um schema Pydantic.
+    """
+    dados_mes = obter_relatorio(estagiario_id, mes, ano, session)
+
+    if formato == "pdf":
+        conteudo = gerar_relatorio_pdf(dados_mes)
+        media_type = "application/pdf"
+        extensao = "pdf"
+    else:
+        conteudo = gerar_relatorio_excel(dados_mes)
+        media_type = (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        extensao = "xlsx"
+
+    nome_arquivo = f"relatorio_{estagiario_id}_{mes:02d}_{ano}.{extensao}"
+    return Response(
+        content=conteudo,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
+    )
