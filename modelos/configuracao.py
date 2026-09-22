@@ -19,6 +19,11 @@ META_HORAS_SEMANAL_PADRAO = 30.0
 LIMITE_ALERTA_NEGATIVO_PADRAO = -5.0
 # Meses ate um saldo positivo vencer se nao for compensado (README 11).
 PRAZO_VENCIMENTO_MESES_PADRAO = 2
+# Teto legal de horas do estagiario (Lei 11.788/2008, README secao 11 e
+# funcionalidade 23). Fica configuravel, e nao travado no codigo, porque a
+# propria lei permite calendario alternado com teto de 8h/40h.
+LIMITE_MAXIMO_DIARIO_PADRAO = 6.0
+LIMITE_MAXIMO_SEMANAL_PADRAO = 30.0
 
 
 class Configuracao(Base):
@@ -43,6 +48,12 @@ class Configuracao(Base):
     )
     prazo_vencimento_meses = Column(
         Integer, nullable=False, default=PRAZO_VENCIMENTO_MESES_PADRAO
+    )
+    limite_maximo_diario = Column(
+        Float, nullable=False, default=LIMITE_MAXIMO_DIARIO_PADRAO
+    )
+    limite_maximo_semanal = Column(
+        Float, nullable=False, default=LIMITE_MAXIMO_SEMANAL_PADRAO
     )
 
     estagiario = relationship("Estagiario", back_populates="configuracao")
