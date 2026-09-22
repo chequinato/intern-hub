@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.rotas import (
     assistente,
@@ -53,6 +54,18 @@ app = FastAPI(
         "de solicitacao de ajuste com aprovacao do gestor e o assistente de IA."
     ),
     lifespan=ciclo_de_vida,
+)
+
+# CORS: o frontend em React (frontend/) roda em outra origem (porta do Vite,
+# ex: localhost:5173) e o navegador bloqueia chamadas entre origens
+# diferentes por padrao. Como a API nao usa cookie de sessao (a autenticacao
+# e so o header Authorization, ver api/seguranca.py), liberar geral e
+# suficiente e mais simples do que listar cada origem de dev.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Rate limiting (item 22, fase final do Miguel): o middleware aplica o limite

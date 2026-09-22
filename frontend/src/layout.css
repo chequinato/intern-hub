@@ -1,0 +1,467 @@
+/* ==========================================================================
+   INTERNHUB — COMPOSICAO
+   Trilho fixo a esquerda + folha editorial a direita. Ritmo da folha:
+   papel . faixa de telemetria . papel.
+   ========================================================================== */
+
+.frame {
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+/* -- Trilho -------------------------------------------------------------- */
+
+.rail {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  border-right: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 0 16px;
+  gap: 18px;
+  background: var(--paper);
+}
+
+.rail-word {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: .34em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.rail-spacer { flex: 1; }
+
+.rail-led {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.led {
+  width: 7px;
+  height: 7px;
+  background: var(--signal);
+  transition: background var(--t2) var(--e-out);
+  flex-shrink: 0;
+}
+.led--on { background: var(--verde); animation: led 2.4s var(--e-out) infinite; }
+
+.rail-led-word {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--ink-45);
+}
+
+.rail-seg { width: 1px; height: 24px; background: var(--rule); }
+
+/* Botao de inversao de tema: metade tinta, metade papel. Sem icone. */
+.invert {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--rule-hard);
+  background: linear-gradient(90deg, var(--ink) 0 50%, var(--paper) 50% 100%);
+  transition: transform var(--t2) var(--e-mech);
+}
+.invert:hover { transform: rotate(180deg); }
+.invert:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
+
+/* -- Folha ----------------------------------------------------------------- */
+
+.sheet {
+  min-width: 0;
+  padding: 0 var(--gutter) 60px;
+  position: relative;
+}
+
+.sheet::before, .sheet::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+.sheet::before {
+  top: 14px; right: 14px;
+  border-top: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+}
+.sheet::after {
+  bottom: 14px; right: 14px;
+  border-bottom: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+}
+
+.masthead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 26px 0 14px;
+  border-bottom: 1px solid var(--rule-hard);
+  flex-wrap: wrap;
+}
+
+.masthead-title {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -.02em;
+  color: var(--ink);
+}
+
+.masthead-sub {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-45);
+  margin-top: 4px;
+}
+
+.masthead-meta {
+  display: flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-45);
+}
+.masthead-meta > * + * { border-left: 1px solid var(--rule); margin-left: 14px; padding-left: 14px; }
+.masthead-meta b { font-weight: 600; color: var(--ink); }
+
+.masthead-sair {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-45);
+  transition: color var(--t1) var(--e-out);
+}
+.masthead-sair:hover { color: var(--signal); }
+
+/* -- Navegacao por abas ---------------------------------------------------- */
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.nav-item {
+  padding: 10px 16px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-45);
+  border-bottom: 2px solid transparent;
+  transition: color var(--t1) var(--e-out), border-color var(--t1) var(--e-out);
+}
+.nav-item:hover { color: var(--ink); }
+.nav-item.on { color: var(--ink); border-bottom-color: var(--signal); }
+
+.pagina { padding: 28px 0 20px; }
+
+/* -- Secao / rotulo --------------------------------------------------------- */
+
+.section-mark {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 0 16px;
+}
+.section-mark .name {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink-45);
+}
+
+/* -- Faixa de telemetria (zona invertida, sangria total) --------------------- */
+
+.band {
+  margin: 24px calc(var(--gutter) * -1);
+  padding: 22px var(--gutter) 26px;
+  background: var(--zone);
+  color: var(--zone-fg);
+}
+
+.band-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0;
+}
+
+.readout {
+  padding: 6px 20px;
+  border-left: 1px solid var(--zone-rule);
+}
+.readout:first-child { border-left: none; padding-left: 0; }
+
+.readout-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--zone-dim);
+}
+
+.readout-val {
+  font-family: var(--display);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(26px, 3vw, 38px);
+  line-height: 1.05;
+  letter-spacing: -.03em;
+  color: var(--zone-fg);
+  margin-top: 4px;
+}
+.readout-val--signal { color: var(--zone-signal); }
+.readout-val--amber { color: var(--zone-amber); }
+.readout-val--verde { color: var(--zone-verde); }
+
+.readout-sub {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--zone-deep);
+  margin-top: 4px;
+}
+
+/* -- Cartoes ------------------------------------------------------------ */
+
+.card {
+  border: 1px solid var(--rule);
+  padding: 20px 22px;
+  background: var(--paper);
+}
+.card + .card { margin-top: 16px; }
+
+.grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+/* -- Formularios -------------------------------------------------------- */
+
+.form { display: flex; flex-direction: column; gap: 14px; }
+
+.campo { display: flex; flex-direction: column; gap: 6px; }
+
+.campo label {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-45);
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  padding: 10px 12px;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--ink);
+  transition: border-color var(--t1) var(--e-out);
+}
+.campo input:focus,
+.campo select:focus,
+.campo textarea:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+
+.campo-linha { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+
+.botao {
+  align-self: flex-start;
+  padding: 10px 22px;
+  border: 1px solid var(--rule-hard);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink);
+  transition: background var(--t1) var(--e-out), color var(--t1) var(--e-out);
+}
+.botao:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+.botao:disabled { opacity: .4; cursor: default; }
+.botao--signal { border-color: var(--signal); color: var(--signal); }
+.botao--signal:hover:not(:disabled) { background: var(--signal); color: var(--paper); }
+
+/* -- Avisos ---------------------------------------------------------- */
+
+.aviso {
+  padding: 10px 14px;
+  border-left: 3px solid var(--amber);
+  background: var(--paper-sunk);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink-70);
+}
+.aviso--erro { border-left-color: var(--signal); color: var(--signal); }
+.aviso--ok { border-left-color: var(--verde); color: var(--verde); }
+
+/* -- Tabela ---------------------------------------------------------- */
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+
+th {
+  text-align: left;
+  padding: 10px 14px 9px 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-45);
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+
+td {
+  padding: 11px 14px 11px 0;
+  font-family: var(--mono);
+  font-size: 13.5px;
+  color: var(--ink-70);
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: middle;
+}
+
+tbody tr { animation: lift var(--t2) var(--e-out) both; animation-delay: calc(var(--i, 0) * 40ms); transition: background var(--t1) var(--e-out); }
+tbody tr:hover { background: var(--paper-sunk); }
+
+.empty {
+  padding: 40px 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink-45);
+}
+
+/* -- Estado (badge) ---------------------------------------------------- */
+
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.state i { width: 8px; height: 8px; display: block; flex-shrink: 0; }
+.state--aprovado { color: var(--verde); }
+.state--aprovado i { border: 1px solid var(--verde); }
+.state--rejeitado { color: var(--signal); }
+.state--rejeitado i { background: var(--signal); }
+.state--pendente { color: var(--azul); }
+.state--pendente i { border: 1px solid var(--azul); }
+
+/* -- Contador mecanico --------------------------------------------------- */
+
+.od { display: inline-flex; align-items: flex-start; font-variant-numeric: tabular-nums; overflow: hidden; }
+.od-col { display: block; height: 1.06em; line-height: 1.06; overflow: hidden; }
+.od-fixed { display: block; height: 1.06em; line-height: 1.06; white-space: pre; }
+.od-strip { display: flex; flex-direction: column; transition: transform var(--t3) var(--e-mech); will-change: transform; }
+.od-strip > span { display: block; height: 1.06em; line-height: 1.06; }
+
+/* -- Tela de selecao / boas-vindas --------------------------------------- */
+
+.portal {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.portal-folha {
+  width: 100%;
+  max-width: 480px;
+  border: 1px solid var(--rule-hard);
+  padding: 36px 34px;
+  background: var(--paper);
+}
+
+.portal-titulo {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 30px;
+  letter-spacing: -.03em;
+  color: var(--ink);
+}
+
+.portal-sub {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-45);
+  margin-top: 6px;
+}
+
+.perfil-toggle {
+  display: flex;
+  margin-top: 26px;
+  border: 1px solid var(--rule-hard);
+}
+.perfil-toggle button {
+  flex: 1;
+  padding: 10px 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-45);
+  transition: background var(--t1) var(--e-out), color var(--t1) var(--e-out);
+}
+.perfil-toggle button + button { border-left: 1px solid var(--rule-hard); }
+.perfil-toggle button.on { background: var(--ink); color: var(--paper); }
+
+/* -- Responsivo ----------------------------------------------------------- */
+
+@media (max-width: 760px) {
+  :root { --gutter: 18px; --rail: 0px; }
+  .frame { grid-template-columns: minmax(0, 1fr); }
+  .rail {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    padding: 10px var(--gutter);
+    border-right: none;
+    border-bottom: 1px solid var(--rule-hard);
+  }
+  .rail-word { writing-mode: horizontal-tb; transform: none; }
+  .rail-led { flex-direction: row; gap: 6px; }
+  .rail-led-word { writing-mode: horizontal-tb; transform: none; }
+  .rail-seg { width: 24px; height: 1px; }
+  .band { margin: 20px calc(var(--gutter) * -1); }
+}
