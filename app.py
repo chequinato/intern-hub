@@ -23,6 +23,12 @@ Como rodar (a API precisa estar no ar antes):
     2) streamlit run app.py
 """
 
+from dotenv import load_dotenv
+
+# Le o .env (API_TOKEN) antes de importar paginas.cliente_api, que le essa
+# variavel assim que o modulo carrega.
+load_dotenv()
+
 import streamlit as st
 
 from paginas import (

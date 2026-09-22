@@ -12,7 +12,15 @@ Como rodar:
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from dotenv import load_dotenv
+
+# Le o .env (OPENAI_API_KEY, API_TOKEN) para o ambiente ANTES de qualquer
+# outro import deste pacote - api/seguranca.py e servicos/assistente.py
+# leem essas variaveis com os.getenv(), que so enxerga o que ja estiver
+# no ambiente do processo.
+load_dotenv()
+
+from fastapi import Depends, FastAPI
 
 from api.rotas import (
     assistente,
@@ -25,6 +33,7 @@ from api.rotas import (
     simulacoes,
     solicitacoes,
 )
+from api.seguranca import LimiteDeRequisicoes, verificar_token
 from banco.conexao import criar_tabelas
 
 
@@ -46,17 +55,27 @@ app = FastAPI(
     lifespan=ciclo_de_vida,
 )
 
+# Rate limiting (item 22, fase final do Miguel): o middleware aplica o limite
+# de 30 req/min por IP (ver api/seguranca.py) a toda rota, sem precisar
+# decorar cada uma.
+app.add_middleware(LimiteDeRequisicoes)
+
 # --- Rotas registradas -------------------------------------------------------
 # Cada dev acrescenta a linha do seu modulo quando o PR dele e mergeado.
-app.include_router(estagiarios.router)    # Pedro Ribeiro (3.1)  - /estagiarios
-app.include_router(registros.router)      # Gustavo (3.2)        - /registros
-app.include_router(saldo.router)          # Gustavo (3.2)        - /saldo/{id}
-app.include_router(relatorio.router)      # Pietro (3.3)         - /relatorio/{id}
-app.include_router(simulacoes.router)     # Pietro (3.3)         - /simulacoes
-app.include_router(feriados.router)       # Pietro (3.3)         - /feriados
-app.include_router(gestores.router)       # Pedro Henrique (3.4) - /gestores
-app.include_router(solicitacoes.router)   # Pedro Henrique (3.4) - /solicitacoes
-app.include_router(assistente.router)     # Arthur (3.5)         - /assistente/perguntar
+# dependencies=[Depends(verificar_token)] (item 21, fase final do Miguel):
+# toda rota de negocio passa a exigir o header Authorization com o token
+# certo. So a rota de saude "/", declarada direto no app mais abaixo, fica
+# de fora - e o que o Streamlit usa pra confirmar que a API esta no ar.
+_protegida = [Depends(verificar_token)]
+app.include_router(estagiarios.router, dependencies=_protegida)    # Pedro Ribeiro (3.1)  - /estagiarios
+app.include_router(registros.router, dependencies=_protegida)      # Gustavo (3.2)        - /registros
+app.include_router(saldo.router, dependencies=_protegida)          # Gustavo (3.2)        - /saldo/{id}
+app.include_router(relatorio.router, dependencies=_protegida)      # Pietro (3.3)         - /relatorio/{id}
+app.include_router(simulacoes.router, dependencies=_protegida)     # Pietro (3.3)         - /simulacoes
+app.include_router(feriados.router, dependencies=_protegida)       # Pietro (3.3)         - /feriados
+app.include_router(gestores.router, dependencies=_protegida)       # Pedro Henrique (3.4) - /gestores
+app.include_router(solicitacoes.router, dependencies=_protegida)   # Pedro Henrique (3.4) - /solicitacoes
+app.include_router(assistente.router, dependencies=_protegida)     # Arthur (3.5)         - /assistente/perguntar
 # -----------------------------------------------------------------------------
 
 

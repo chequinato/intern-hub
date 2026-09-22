@@ -6,6 +6,7 @@ sqlalchemy>=2.0,<3.0     # biblioteca principal do projeto (ORM)
 fastapi>=0.115,<1.0      # API que cobre todo o sistema
 uvicorn>=0.30,<1.0       # servidor que roda a API
 pydantic>=2.8,<3.0       # validacao dos payloads da API
+python-dotenv>=1.0,<2.0  # le o arquivo .env (OPENAI_API_KEY, API_TOKEN)
 streamlit>=1.38,<2.0     # dashboard
 requests>=2.32,<3.0      # o Streamlit fala com a API por HTTP
 
@@ -16,4 +17,5 @@ openai>=1.0,<2.0       # Arthur (3.5)        - assistente de IA
 fpdf2>=2.7,<3.0        # Arthur (3.5)        - exportacao em PDF
 openpyxl>=3.1,<4.0     # Arthur (3.5)        - exportacao em Excel
 pytest>=8.0,<9.0       # Arthur (3.5)        - testes
-# slowapi      # Miguel (fase final) - rate limiting
+# Miguel (fase final) - o rate limiting usa so o FastAPI/Starlette, sem lib
+# nova (ver api/seguranca.py); a autenticacao usa fastapi.security, ja incluso.

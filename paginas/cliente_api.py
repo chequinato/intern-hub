@@ -28,6 +28,11 @@ import requests
 API_URL = os.getenv("INTERNHUB_API_URL", "http://localhost:8000").rstrip("/")
 TIMEOUT_SEGUNDOS = 5
 
+# Token da fase final de seguranca (Miguel, itens 21-22 do README). Sem
+# API_TOKEN no .env, a API roda aberta e este header e ignorado por ela -
+# ver api/seguranca.py.
+API_TOKEN = os.getenv("API_TOKEN", "")
+
 MSG_API_FORA = (
     f"Não consegui falar com a API em {API_URL}.\n\n"
     "Abra outro terminal, na pasta do projeto, e rode:\n\n"
@@ -52,12 +57,14 @@ def patch(caminho: str, payload: dict):
 
 def _chamar(verbo: str, caminho: str, payload: dict = None, parametros: dict = None):
     """Faz a requisicao e traduz qualquer falha em uma mensagem em portugues."""
+    cabecalhos = {"Authorization": f"Bearer {API_TOKEN}"} if API_TOKEN else {}
     try:
         resposta = requests.request(
             verbo,
             f"{API_URL}{caminho}",
             json=payload,
             params=parametros,
+            headers=cabecalhos,
             timeout=TIMEOUT_SEGUNDOS,
         )
     except requests.exceptions.ConnectionError:
