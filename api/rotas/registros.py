@@ -7,7 +7,7 @@ sessao via Depends(get_session), schema Pydantic na entrada, commit dentro de
 try com rollback no except, e status code explicito.
 """
 
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
@@ -15,8 +15,16 @@ from sqlalchemy.orm import Session
 
 from api.schemas import RegistroCreate, RegistroResponse
 from banco.conexao import get_session
-from modelos import Estagiario, RegistroPonto
-from servicos.calculo import calcular_horas_trabalhadas, verificar_pendencia_almoco
+from modelos import Configuracao, Estagiario, RegistroPonto
+from modelos.configuracao import (
+    LIMITE_MAXIMO_DIARIO_PADRAO,
+    LIMITE_MAXIMO_SEMANAL_PADRAO,
+)
+from servicos.calculo import (
+    calcular_horas_trabalhadas,
+    verificar_limite_legal,
+    verificar_pendencia_almoco,
+)
 
 router = APIRouter(prefix="/registros", tags=["Registros"])
 
@@ -26,11 +34,43 @@ AVISO_PENDENCIA = (
 )
 
 
-def _montar_resposta(registro: RegistroPonto) -> RegistroResponse:
+def _horas_da_semana(registro: RegistroPonto, session: Session) -> float:
+    """Soma as horas trabalhadas de todos os dias da mesma semana (segunda a
+    domingo) do estagiario, incluindo o proprio registro recebido.
+
+    Usada so para o aviso de limite legal (funcionalidade 23) - o saldo
+    acumulado "de verdade" continua sendo calculado por
+    servicos/saldo.py, com func.sum() direto no banco.
+    """
+    inicio_da_semana = registro.data - timedelta(days=registro.data.weekday())
+    fim_da_semana = inicio_da_semana + timedelta(days=6)
+
+    registros_da_semana = (
+        session.query(RegistroPonto)
+        .filter(
+            RegistroPonto.estagiario_id == registro.estagiario_id,
+            RegistroPonto.data >= inicio_da_semana,
+            RegistroPonto.data <= fim_da_semana,
+        )
+        .all()
+    )
+    return round(
+        sum(
+            calcular_horas_trabalhadas(
+                r.entrada, r.saida, r.saida_almoco, r.retorno_almoco
+            )
+            for r in registros_da_semana
+        ),
+        2,
+    )
+
+
+def _montar_resposta(registro: RegistroPonto, session: Session) -> RegistroResponse:
     """Converte um RegistroPonto do banco em RegistroResponse.
 
     Aqui e onde o calculo do dia (servicos/calculo.py) se junta aos dados
-    crus do banco: horas trabalhadas e a marca de pendencia.
+    crus do banco: horas trabalhadas, pendencia de almoco e o aviso de
+    limite legal (funcionalidade 23).
     """
     pendencia = verificar_pendencia_almoco(registro)
     horas = calcular_horas_trabalhadas(
@@ -39,6 +79,26 @@ def _montar_resposta(registro: RegistroPonto) -> RegistroResponse:
         registro.saida_almoco,
         registro.retorno_almoco,
     )
+
+    configuracao = (
+        session.query(Configuracao)
+        .filter_by(estagiario_id=registro.estagiario_id)
+        .first()
+    )
+    limite_diario = (
+        configuracao.limite_maximo_diario
+        if configuracao is not None
+        else LIMITE_MAXIMO_DIARIO_PADRAO
+    )
+    limite_semanal = (
+        configuracao.limite_maximo_semanal
+        if configuracao is not None
+        else LIMITE_MAXIMO_SEMANAL_PADRAO
+    )
+    aviso_limite = verificar_limite_legal(
+        horas, _horas_da_semana(registro, session), limite_diario, limite_semanal
+    )
+
     return RegistroResponse(
         id=registro.id,
         estagiario_id=registro.estagiario_id,
@@ -50,6 +110,7 @@ def _montar_resposta(registro: RegistroPonto) -> RegistroResponse:
         horas_trabalhadas=horas,
         pendencia=pendencia,
         aviso=AVISO_PENDENCIA if pendencia else None,
+        aviso_limite_legal=aviso_limite,
     )
 
 
@@ -107,7 +168,7 @@ def criar_registro(
         ) from erro
 
     session.refresh(registro)
-    return _montar_resposta(registro)
+    return _montar_resposta(registro, session)
 
 
 @router.get(
@@ -140,4 +201,4 @@ def listar_registros(
         consulta = consulta.filter(RegistroPonto.data <= fim)
 
     registros = consulta.order_by(RegistroPonto.data).all()
-    return [_montar_resposta(registro) for registro in registros]
+    return [_montar_resposta(registro, session) for registro in registros]

@@ -15,6 +15,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from modelos.configuracao import (
     LIMITE_ALERTA_NEGATIVO_PADRAO,
+    LIMITE_MAXIMO_DIARIO_PADRAO,
+    LIMITE_MAXIMO_SEMANAL_PADRAO,
     META_HORAS_DIARIA_PADRAO,
     META_HORAS_SEMANAL_PADRAO,
     PRAZO_VENCIMENTO_MESES_PADRAO,
@@ -34,6 +36,10 @@ class ConfiguracaoCreate(BaseModel):
     meta_horas_semanal: float = Field(default=META_HORAS_SEMANAL_PADRAO, gt=0, le=168)
     limite_alerta_negativo: float = Field(default=LIMITE_ALERTA_NEGATIVO_PADRAO, le=0)
     prazo_vencimento_meses: int = Field(default=PRAZO_VENCIMENTO_MESES_PADRAO, ge=1)
+    limite_maximo_diario: float = Field(default=LIMITE_MAXIMO_DIARIO_PADRAO, gt=0, le=24)
+    limite_maximo_semanal: float = Field(
+        default=LIMITE_MAXIMO_SEMANAL_PADRAO, gt=0, le=168
+    )
 
 
 class ConfiguracaoResponse(ConfiguracaoCreate):
@@ -132,6 +138,7 @@ class RegistroResponse(BaseModel):
     horas_trabalhadas: float
     pendencia: bool
     aviso: str | None = None
+    aviso_limite_legal: str | None = None
 
 
 class SaldoResponse(BaseModel):

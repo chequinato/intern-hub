@@ -23,6 +23,7 @@ import pytest
 from servicos.calculo import (
     calcular_horas_trabalhadas,
     validar_ordem_dos_horarios,
+    verificar_limite_legal,
     verificar_pendencia_almoco,
 )
 
@@ -198,3 +199,46 @@ def test_dia_completo_com_almoco_incompleto_e_pendencia(saida_almoco, retorno_al
         saida=horario(17), saida_almoco=saida_almoco, retorno_almoco=retorno_almoco
     )
     assert verificar_pendencia_almoco(registro) is True
+
+
+# --- verificar_limite_legal (funcionalidade 23) ---------------------------------
+
+
+def test_dia_dentro_do_limite_nao_gera_aviso():
+    """6h no dia, semana com 6h: nada passa do limite padrão (6h/30h)."""
+    assert verificar_limite_legal(6.0, 6.0, limite_diario=6.0, limite_semanal=30.0) is None
+
+
+def test_dia_no_limite_exato_nao_gera_aviso():
+    """O limite é uma barreira de "passou de", não de "chegou em": 6.0h
+    exatas ainda é permitido, só 6.01h em diante avisa.
+    """
+    assert verificar_limite_legal(6.0, 6.0, limite_diario=6.0, limite_semanal=30.0) is None
+
+
+def test_dia_acima_do_limite_diario_gera_aviso():
+    resultado = verificar_limite_legal(9.0, 9.0, limite_diario=6.0, limite_semanal=30.0)
+    assert resultado is not None
+    assert "6.0h por dia" in resultado
+
+
+def test_semana_acima_do_limite_mesmo_com_dia_dentro_do_limite():
+    """Dias de 5h cada, mas a soma da semana já passou de 30h."""
+    resultado = verificar_limite_legal(5.0, 32.0, limite_diario=6.0, limite_semanal=30.0)
+    assert resultado is not None
+    assert "30.0h por semana" in resultado
+
+
+def test_dia_e_semana_acima_do_limite_ao_mesmo_tempo_avisa_so_o_diario():
+    """Quando os dois estouram juntos, o aviso mais específico (o do dia)
+    é o que aparece - avisar dos dois ao mesmo tempo só confundiria.
+    """
+    resultado = verificar_limite_legal(9.0, 40.0, limite_diario=6.0, limite_semanal=30.0)
+    assert "por dia" in resultado
+
+
+def test_calendario_alternado_com_limite_configurado_mais_alto():
+    """Configuracao pode elevar o teto para 8h/40h (calendário alternado,
+    README seção 11): um dia de 7h não deve avisar nesse cenário.
+    """
+    assert verificar_limite_legal(7.0, 20.0, limite_diario=8.0, limite_semanal=40.0) is None

@@ -114,6 +114,40 @@ def validar_ordem_dos_horarios(
     return None
 
 
+def verificar_limite_legal(
+    horas_do_dia: float,
+    horas_da_semana: float,
+    limite_diario: float,
+    limite_semanal: float,
+) -> str | None:
+    """Avisa quando o dia ou a semana passam do teto legal do estagio.
+
+    Pela Lei do Estagio (Lei 11.788/2008), o teto e 6h/dia e 30h/semana por
+    padrao (README secao 11 e funcionalidade 23) - por isso os limites vem
+    como parametro em vez de constante fixa aqui: cada estagiario pode ter
+    um valor diferente em Configuracao, para calendario alternado (8h/40h).
+
+    Isto e diferente da META de horas (servicos/saldo.py): a meta e quanto a
+    pessoa DEVERIA trabalhar; o limite legal e o que ela NAO PODE ultrapassar,
+    mesmo tentando compensar um saldo negativo.
+
+    So avisa, nunca bloqueia: o dia ja foi trabalhado, o sistema so sinaliza
+    (README secao 3.2). Quando os dois limites estouram juntos, devolve so o
+    aviso diario, que aponta o problema mais especifico.
+    """
+    if horas_do_dia > limite_diario:
+        return (
+            f"O dia registrado tem {horas_do_dia:.2f}h, acima do limite "
+            f"legal de {limite_diario:.1f}h por dia (Lei 11.788/2008)."
+        )
+    if horas_da_semana > limite_semanal:
+        return (
+            f"A semana ja soma {horas_da_semana:.2f}h, acima do limite "
+            f"legal de {limite_semanal:.1f}h por semana (Lei 11.788/2008)."
+        )
+    return None
+
+
 def verificar_pendencia_almoco(registro) -> bool:
     """Diz se o registro esta pendente por falta de marcacao do almoco.
 
