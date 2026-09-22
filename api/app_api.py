@@ -15,6 +15,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from api.rotas import (
+    assistente,
     estagiarios,
     feriados,
     gestores,
@@ -36,11 +37,11 @@ async def ciclo_de_vida(app: FastAPI):
 
 app = FastAPI(
     title="InternHub API",
-    version="0.4.0",
+    version="0.5.0",
     description=(
         "API do banco de horas de estagio. Cobre cadastro de estagiarios, "
-        "registro de ponto, saldo, relatorio, simulacao, feriados e o fluxo "
-        "de solicitacao de ajuste com aprovacao do gestor."
+        "registro de ponto, saldo, relatorio, simulacao, feriados, o fluxo "
+        "de solicitacao de ajuste com aprovacao do gestor e o assistente de IA."
     ),
     lifespan=ciclo_de_vida,
 )
@@ -55,9 +56,7 @@ app.include_router(simulacoes.router)     # Pietro (3.3)         - /simulacoes
 app.include_router(feriados.router)       # Pietro (3.3)         - /feriados
 app.include_router(gestores.router)       # Pedro Henrique (3.4) - /gestores
 app.include_router(solicitacoes.router)   # Pedro Henrique (3.4) - /solicitacoes
-
-# Ainda por vir:
-# app.include_router(assistente.router)   # Arthur (3.5) - POST /assistente/perguntar
+app.include_router(assistente.router)     # Arthur (3.5)         - /assistente/perguntar
 # -----------------------------------------------------------------------------
 
 

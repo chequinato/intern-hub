@@ -313,3 +313,31 @@ class SolicitacaoDecisaoResponse(BaseModel):
     solicitacao: SolicitacaoResponse
     saldo_acumulado: float | None = None
     mensagem: str
+
+
+# --- Assistente de IA ----------------------------------------------------------
+# Parte do Arthur Linhares (secao 3.5). Nao existe *Create porque a pergunta nao
+# fica salva no banco - mesmo espirito de SimulacaoRequest/SimulacaoResponse
+# (Pietro, secao 3.3): so entra, processa e sai, sem virar linha de tabela.
+
+
+class AssistentePerguntaRequest(BaseModel):
+    """Payload de POST /assistente/perguntar: quem pergunta, e o que."""
+
+    estagiario_id: int
+    pergunta: str = Field(min_length=3, max_length=500)
+
+    @field_validator("pergunta")
+    @classmethod
+    def _pergunta_de_verdade(cls, valor: str) -> str:
+        """Impede que espacos em branco passem pelo min_length."""
+        texto = valor.strip()
+        if len(texto) < 3:
+            raise ValueError("escreva uma pergunta com pelo menos 3 caracteres")
+        return texto
+
+
+class AssistentePerguntaResponse(BaseModel):
+    """Resposta do assistente, ja em linguagem natural."""
+
+    resposta: str

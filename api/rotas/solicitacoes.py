@@ -1,6 +1,7 @@
 """Rotas de /solicitacoes - pedido de ajuste, aprovacao e auditoria.
 
 Modulo dono: Pedro Henrique (Desenvolvedor 4 - secao 3.4).
+Rota de exportacao em PDF: Arthur Linhares (Desenvolvedor 5 - secao 3.5).
 
 Esta camada e fina de proposito: toda a regra esta em servicos/solicitacao.py.
 Aqui so acontecem tres coisas - validar o payload (Pydantic), chamar o
@@ -15,9 +16,10 @@ Rotas:
     GET    /solicitacoes             historico completo (auditoria)
     GET    /solicitacoes/pendentes   fila do gestor
     PATCH  /solicitacoes/{id}        gestor aprova ou rejeita
+    GET    /solicitacoes/{id}/pdf    comprovante em PDF (funcionalidade 18)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -30,6 +32,7 @@ from api.schemas import (
 from banco.conexao import get_session
 from modelos import Gestor, SolicitacaoAjuste
 from modelos.solicitacao_ajuste import STATUS_APROVADO
+from servicos.exportar_pdf import gerar_pdf_solicitacao
 from servicos.solicitacao import (
     ErroDeSolicitacao,
     SolicitacaoNaoEncontrada,
@@ -204,4 +207,35 @@ def decidir_solicitacao(
         solicitacao=_montar_resposta(solicitacao),
         saldo_acumulado=saldo,
         mensagem=mensagem,
+    )
+
+
+@router.get(
+    "/{solicitacao_id}/pdf",
+    summary="Baixa o comprovante em PDF de uma solicitacao (funcionalidade 18)",
+)
+def baixar_pdf(
+    solicitacao_id: int, session: Session = Depends(get_session)
+) -> Response:
+    """Gera o PDF na hora (nao fica guardado em disco) e devolve como anexo.
+
+    Sem response_model de proposito: o retorno aqui e bytes de PDF, nao um
+    schema Pydantic - o mesmo motivo por tras de servicos/exportar_pdf.py
+    trabalhar direto com o modelo SQLAlchemy em vez de um schema da API.
+    """
+    solicitacao = (
+        session.query(SolicitacaoAjuste).filter_by(id=solicitacao_id).first()
+    )
+    if solicitacao is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Solicitacao {solicitacao_id} nao encontrada.",
+        )
+
+    pdf_bytes = gerar_pdf_solicitacao(solicitacao)
+    nome_arquivo = f"solicitacao_{solicitacao_id}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
     )

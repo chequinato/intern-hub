@@ -27,6 +27,7 @@ import streamlit as st
 
 from paginas import (
     aprovacoes,
+    assistente,
     auditoria,
     cliente_api,
     registro,
@@ -181,14 +182,12 @@ def menu_do_estagiario(estagiario_id: int) -> None:
         "Simular cenário": simulacao.mostrar,
         "Solicitações": solicitacoes.mostrar,
         "Auditoria": auditoria.mostrar,
+        "Assistente de IA": assistente.mostrar,
     }
 
     escolha = st.sidebar.radio("Ir para", ["Início", *paginas])
     if escolha == "Início":
-        st.info(
-            "Escolha uma tela no menu à esquerda. O assistente de IA "
-            "(Arthur, seção 3.5) ainda está por vir."
-        )
+        st.info("Escolha uma tela no menu à esquerda.")
         return
 
     paginas[escolha](estagiario_id)
