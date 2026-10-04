@@ -33,7 +33,7 @@ python -m venv .venv
 pip install -r requirements.txt
 
 copy .env.example .env              # Linux/macOS: cp .env.example .env
-python popular_demo.py              # opcional: dados de exemplo
+python popular_demo.py              # recomendado: dados de exemplo
 uvicorn api.app_api:app --reload
 ```
 
@@ -46,7 +46,8 @@ uvicorn api.app_api:app --reload
     o resto funciona normalmente.
 - `popular_demo.py` cria um gestor (Carla Mendes), dois estagiários e as
   últimas semanas de ponto do Lucas Andrade, com um dia pendente e um
-  pedido de ajuste esperando aprovação. Só roda com o banco vazio.
+  pedido de ajuste esperando aprovação. Só roda com o banco vazio — sem
+  ele, o sistema abre sem nenhum cadastro.
 
 ### 2. Frontend (React) — terminal 2
 
