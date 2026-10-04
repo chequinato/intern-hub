@@ -64,6 +64,10 @@ Abre em `http://localhost:5173`. Na tela inicial, escolha "estagiário"
 Se preencher `API_TOKEN` no `.env` da raiz, coloque o mesmo valor em
 `VITE_API_TOKEN` no `frontend/.env` — senão a API responde 401.
 
+A API só aceita chamadas do frontend em `localhost:5173` (CORS). Se o Vite
+abrir em outra porta (ex: 5174, quando a 5173 está ocupada), coloque esse
+endereço em `FRONTEND_URL` no `.env` da raiz e reinicie a API.
+
 ## Testes
 
 Na raiz do projeto, com o `.venv` ativado:
@@ -72,14 +76,15 @@ Na raiz do projeto, com o `.venv` ativado:
 pytest -v
 ```
 
-São 35 casos em dois arquivos:
+São 37 casos em dois arquivos:
 
 - `testes/test_calculo.py` — regras do dia (horas trabalhadas, almoço
   mínimo de 1h, pendência, ordem dos horários, limite legal).
 - `testes/test_api.py` — requisições de verdade na API, num banco em
   memória (não mexe no `dados.db`): registro e saldo, validação 422, fluxo
   completo de ajuste com aprovação do gestor, faltas do relatório,
-  exportação PDF/Excel e o bloqueio 401 sem token.
+  exportação PDF/Excel, aviso de limite legal semanal, o bloqueio 401 sem
+  token e o CORS restrito ao frontend.
 
 ## Estrutura
 

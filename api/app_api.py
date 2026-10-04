@@ -10,6 +10,7 @@ Como rodar:
     Documentacao interativa em http://localhost:8000/docs
 """
 
+import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -58,12 +59,23 @@ app = FastAPI(
 
 # CORS: o frontend em React (frontend/) roda em outra origem (porta do Vite,
 # ex: localhost:5173) e o navegador bloqueia chamadas entre origens
-# diferentes por padrao. Como a API nao usa cookie de sessao (a autenticacao
-# e so o header Authorization, ver api/seguranca.py), liberar geral e
-# suficiente e mais simples do que listar cada origem de dev.
+# diferentes por padrao. Antes estava liberado para qualquer site ("*");
+# agora so o endereco do frontend pode chamar a API pelo navegador. Se o
+# Vite subir em outra porta, ajuste FRONTEND_URL no .env (pode ter mais de
+# um endereco, separados por virgula).
+# O "or" (e nao o padrao do getenv) cobre o FRONTEND_URL= vazio que vem no
+# .env.example: vazio tambem cai nos enderecos padrao do Vite.
+ORIGENS_PERMITIDAS = [
+    origem.strip().rstrip("/")
+    for origem in (
+        os.getenv("FRONTEND_URL") or "http://localhost:5173,http://127.0.0.1:5173"
+    ).split(",")
+    if origem.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ORIGENS_PERMITIDAS,
     allow_methods=["*"],
     allow_headers=["*"],
 )

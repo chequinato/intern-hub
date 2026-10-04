@@ -202,3 +202,19 @@ def test_aviso_semanal_so_aparece_quando_a_semana_ja_passou_do_limite(cliente):
     # Sexta: o proprio dia (7h) ja passa do limite diario de 6h, que e o
     # aviso mais especifico e por isso o que aparece.
     assert "por dia" in avisos["2026-09-25"]
+
+
+def test_cors_so_libera_o_endereco_do_frontend(cliente):
+    """O navegador so deixa um site chamar a API se ela responder com o
+    header Access-Control-Allow-Origin para aquele site. O frontend
+    (localhost:5173) recebe; um site qualquer, nao."""
+    def preflight(origem):
+        return cliente.options("/estagiarios", headers={
+            "Origin": origem, "Access-Control-Request-Method": "GET",
+        })
+
+    liberado = preflight("http://localhost:5173")
+    assert liberado.headers.get("access-control-allow-origin") == "http://localhost:5173"
+
+    barrado = preflight("http://site-qualquer.com")
+    assert "access-control-allow-origin" not in barrado.headers

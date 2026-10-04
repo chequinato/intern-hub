@@ -23,6 +23,7 @@ Duas pecas, independentes uma da outra:
 """
 
 import os
+import secrets
 import time
 from collections import defaultdict
 
@@ -50,7 +51,11 @@ def verificar_token(token: str | None = Security(_cabecalho_do_token)) -> None:
         return
 
     recebido = (token or "").removeprefix("Bearer ").strip()
-    if recebido != TOKEN_ESPERADO:
+    # compare_digest em vez de "!=": o "!=" para no primeiro caractere
+    # diferente, entao um token com o comeco certo demora um pouquinho mais
+    # para ser recusado - medindo esse tempo, daria para descobrir a chave
+    # aos poucos. compare_digest leva sempre o mesmo tempo.
+    if not secrets.compare_digest(recebido.encode(), TOKEN_ESPERADO.encode()):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token de autenticacao invalido ou ausente.",
