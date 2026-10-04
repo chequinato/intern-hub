@@ -13,7 +13,6 @@ venv/
 *.egg-info/
 
 # Ambiente
-.streamlit/secrets.toml
 .DS_Store
 
 # Ferramentas locais (nao fazem parte do projeto)

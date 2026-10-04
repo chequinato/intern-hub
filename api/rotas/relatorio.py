@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
-from sqlalchemy import extract
+from sqlalchemy import extract, func
 from datetime import date
 from typing import Literal
 import calendar
@@ -60,10 +60,22 @@ def obter_relatorio(estagiario_id: int, mes: int, ano: int, session: Session = D
     
     # Se estiver olhando o mês atual, não conta falta de dias do futuro. Para meses passados, olha até o dia 30/31.
     dia_limite = hoje.day if (ano == hoje.year and mes == hoje.month) else ultimo_dia_mes
-    
+
+    # Só conta falta a partir do primeiro ponto que o estagiário bateu na
+    # vida. Antes, a conta começava sempre no dia 1: quem começou o estágio
+    # no dia 28 aparecia com 20 faltas em setembro. func.min() pede ao banco a
+    # menor data, sem trazer os registros para o Python.
+    primeiro_registro = (
+        session.query(func.min(RegistroPonto.data))
+        .filter(RegistroPonto.estagiario_id == estagiario_id)
+        .scalar()
+    )
+
     for dia in range(1, dia_limite + 1):
         data_atual = date(ano, mes, dia)
-        
+        if primeiro_registro is None or data_atual < primeiro_registro:
+            continue
+
         # A Mágica: Se é dia útil (sem fim de semana e sem feriado) E a pessoa não bateu ponto...
         if eh_dia_util(data_atual, session) and dia not in dias_trabalhados:
             faltas += 1

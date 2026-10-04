@@ -43,8 +43,8 @@ def verificar_token(token: str | None = Security(_cabecalho_do_token)) -> None:
     """Dependencia do FastAPI: barra a rota se o token nao bater.
 
     Aceita tanto o token puro ("abc123") quanto o formato "Bearer abc123"
-    no header, para o cliente (Streamlit hoje, React depois) poder usar
-    qualquer um dos dois sem quebrar.
+    no header, para o cliente (o frontend React manda "Bearer ...") poder
+    usar qualquer um dos dois sem quebrar.
     """
     if not TOKEN_ESPERADO:
         return
@@ -57,7 +57,11 @@ def verificar_token(token: str | None = Security(_cabecalho_do_token)) -> None:
         )
 
 
-LIMITE_REQUISICOES_POR_MINUTO = 30
+# Comecou em 30 (o exemplo da secao 11 do README). Subiu para 120 depois do
+# frontend em React: cada tela faz de 2 a 4 chamadas ao abrir, entao navegar
+# rapido entre as abas estourava o limite e a tela mostrava erro 429 no meio
+# do uso normal. 120/min ainda barra um loop descontrolado chamando a API.
+LIMITE_REQUISICOES_POR_MINUTO = 120
 JANELA_EM_SEGUNDOS = 60
 
 # Para cada IP, guarda o horario (timestamp) de cada requisicao recente.
@@ -68,7 +72,7 @@ _requisicoes_por_ip: dict[str, list[float]] = defaultdict(list)
 
 
 class LimiteDeRequisicoes(BaseHTTPMiddleware):
-    """Middleware do item 22: no maximo 30 requisicoes por IP a cada minuto.
+    """Middleware do item 22: no maximo 120 requisicoes por IP a cada minuto.
 
     A cada requisicao, descarta do historico do IP tudo que saiu da janela
     dos ultimos 60s e confere se o que sobrou ja bateu o limite. Registrado

@@ -1,6 +1,7 @@
 // Cliente HTTP compartilhado por todas as telas.
 //
-// Mesma ideia do paginas/cliente_api.py do Streamlit: monta a URL, manda o
+// Mesma ideia do antigo cliente do Streamlit (removido; continua no
+// historico do Git): monta a URL, manda o
 // token (se houver um configurado), trata "API fora do ar" e traduz erro da
 // API (que vem em { detail: ... }) para uma mensagem pronta de mostrar.
 //

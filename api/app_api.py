@@ -2,8 +2,8 @@
 
 Modulo dono: Pedro Ribeiro (Desenvolvedor 1 - fundacao).
 
-Esta e a unica camada que fala com o banco. O Streamlit e cliente HTTP puro:
-nenhuma pagina importa modelos/ ou servicos/ diretamente.
+Esta e a unica camada que fala com o banco. O frontend em React (frontend/)
+e cliente HTTP puro: nenhuma tela acessa modelos/ ou servicos/ diretamente.
 
 Como rodar:
     uvicorn api.app_api:app --reload
@@ -69,7 +69,7 @@ app.add_middleware(
 )
 
 # Rate limiting (item 22, fase final do Miguel): o middleware aplica o limite
-# de 30 req/min por IP (ver api/seguranca.py) a toda rota, sem precisar
+# de 120 req/min por IP (ver api/seguranca.py) a toda rota, sem precisar
 # decorar cada uma.
 app.add_middleware(LimiteDeRequisicoes)
 
@@ -78,7 +78,7 @@ app.add_middleware(LimiteDeRequisicoes)
 # dependencies=[Depends(verificar_token)] (item 21, fase final do Miguel):
 # toda rota de negocio passa a exigir o header Authorization com o token
 # certo. So a rota de saude "/", declarada direto no app mais abaixo, fica
-# de fora - e o que o Streamlit usa pra confirmar que a API esta no ar.
+# de fora - serve para conferir se a API esta no ar.
 _protegida = [Depends(verificar_token)]
 app.include_router(estagiarios.router, dependencies=_protegida)    # Pedro Ribeiro (3.1)  - /estagiarios
 app.include_router(registros.router, dependencies=_protegida)      # Gustavo (3.2)        - /registros
@@ -94,5 +94,5 @@ app.include_router(assistente.router, dependencies=_protegida)     # Arthur (3.5
 
 @app.get("/", tags=["Saude"], summary="Confere se a API esta no ar")
 def raiz() -> dict:
-    """Usado pelo Streamlit para avisar quando a API nao esta rodando."""
+    """Rota de saude: responde sem token, so para confirmar que a API subiu."""
     return {"servico": "InternHub API", "status": "no ar", "documentacao": "/docs"}

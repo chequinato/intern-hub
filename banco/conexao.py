@@ -18,8 +18,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 # O banco fica ao lado deste arquivo (banco/dados.db). Usar caminho absoluto
-# derivado do __file__ garante que a API e o Streamlit apontem para o mesmo
-# arquivo, nao importa de qual pasta cada processo foi iniciado.
+# derivado do __file__ garante que a API (e os testes) apontem para o mesmo
+# arquivo, nao importa de qual pasta o processo foi iniciado.
 PASTA_BANCO = Path(__file__).resolve().parent
 CAMINHO_BANCO = PASTA_BANCO / "dados.db"
 URL_BANCO = f"sqlite:///{CAMINHO_BANCO}"
