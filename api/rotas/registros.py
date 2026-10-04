@@ -35,22 +35,27 @@ AVISO_PENDENCIA = (
 
 
 def _horas_da_semana(registro: RegistroPonto, session: Session) -> float:
-    """Soma as horas trabalhadas de todos os dias da mesma semana (segunda a
-    domingo) do estagiario, incluindo o proprio registro recebido.
+    """Soma as horas da semana (a partir de segunda) ate o dia do registro,
+    incluindo o proprio registro recebido.
+
+    So conta ate o dia do registro, e nao a semana inteira: antes, quando a
+    sexta estourava as 30h, a segunda e a terca daquela semana tambem
+    apareciam no historico como "acima do limite legal" - mesmo tendo 6h
+    cada e mesmo a mensagem dizendo "a semana JA soma". Agora o aviso so
+    aparece no dia em que a semana de fato passou do limite (e nos seguintes).
 
     Usada so para o aviso de limite legal (funcionalidade 23) - o saldo
     acumulado "de verdade" continua sendo calculado por
     servicos/saldo.py, com func.sum() direto no banco.
     """
     inicio_da_semana = registro.data - timedelta(days=registro.data.weekday())
-    fim_da_semana = inicio_da_semana + timedelta(days=6)
 
     registros_da_semana = (
         session.query(RegistroPonto)
         .filter(
             RegistroPonto.estagiario_id == registro.estagiario_id,
             RegistroPonto.data >= inicio_da_semana,
-            RegistroPonto.data <= fim_da_semana,
+            RegistroPonto.data <= registro.data,
         )
         .all()
     )

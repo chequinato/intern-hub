@@ -176,3 +176,29 @@ def test_rota_protegida_sem_token_devolve_401(cliente, monkeypatch):
     assert cliente.get(
         "/estagiarios", headers={"Authorization": "Bearer segredo-de-teste"}
     ).status_code == 200
+
+
+def test_aviso_semanal_so_aparece_quando_a_semana_ja_passou_do_limite(cliente):
+    """CASO QUE FALHOU E FOI CORRIGIDO (Entrega 2).
+
+    Semana de 21 a 25/09 com 6h por dia, e sexta com 7h: so na sexta a
+    semana passa das 30h (6+6+6+6+7 = 31h). Antes, o historico marcava
+    "acima do limite legal" na semana inteira, inclusive na segunda, porque
+    a conta somava tambem os dias que vinham DEPOIS do registro.
+    """
+    _, estagiario = _criar_estagiario_com_gestor(cliente)
+    for dia, saida in (("21", "16:00"), ("22", "16:00"), ("23", "16:00"),
+                       ("24", "16:00"), ("25", "17:00")):
+        cliente.post("/registros", json={
+            "estagiario_id": estagiario["id"], "data": f"2026-09-{dia}",
+            "entrada": "09:00", "saida_almoco": "12:00",
+            "retorno_almoco": "13:00", "saida": saida,
+        })
+
+    historico = cliente.get(f"/registros/{estagiario['id']}").json()
+    avisos = {r["data"]: r["aviso_limite_legal"] for r in historico}
+    assert avisos["2026-09-21"] is None
+    assert avisos["2026-09-24"] is None
+    # Sexta: o proprio dia (7h) ja passa do limite diario de 6h, que e o
+    # aviso mais especifico e por isso o que aparece.
+    assert "por dia" in avisos["2026-09-25"]
