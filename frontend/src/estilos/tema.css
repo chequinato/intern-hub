@@ -1,0 +1,123 @@
+/* ==========================================================================
+   INTERNHUB - TEMA (Entrega 3)
+   Todas as cores, fontes, raios e tempos de animacao do sistema moram aqui,
+   como variaveis CSS. Os outros arquivos de estilo so usam estas variaveis,
+   nunca uma cor solta - e por isso que o modo escuro funciona trocando so
+   este bloco (o atributo data-tema="escuro" no <html>, ver useTema.js).
+
+   Paleta: verde-petroleo como cor da marca, ambar para "atencao" (semana
+   chegando no limite), vermelho para alerta, verde para credito. A cor
+   sempre carrega um significado - nada de cor so para enfeitar.
+   ========================================================================== */
+
+:root {
+  /* -- Marca: verde-petroleo ------------------------------------------- */
+  --marca-50: #F0FDFA;
+  --marca-100: #CCFBF1;
+  --marca-200: #99F6E4;
+  --marca-400: #2DD4BF;
+  --marca-500: #14B8A6;
+  --marca-600: #0D9488;
+  --marca-700: #0F766E;
+  --marca-800: #115E59;
+  --marca-900: #0B3B3A;
+
+  /* -- Barra lateral (escura nos dois temas) ----------------------------- */
+  --lateral: #0B2A2C;
+  --lateral-2: #103638;
+  --lateral-borda: #1A4547;
+  --lateral-texto: #B9D3D0;
+  --lateral-texto-forte: #FFFFFF;
+  --lateral-ativo: #164E50;
+
+  /* -- Superficies e texto ---------------------------------------------- */
+  --fundo: #F4F6F8;
+  --superficie: #FFFFFF;
+  --superficie-2: #F8FAFB;
+  --superficie-3: #EEF2F4;
+  --borda: #E3E8EC;
+  --borda-forte: #CDD5DB;
+  --texto: #0F1B22;
+  --texto-2: #46555F;
+  --texto-3: #7A8892;
+
+  /* -- Sinais ------------------------------------------------------------ */
+  --credito: #059669;
+  --credito-fundo: #ECFDF5;
+  --credito-borda: #A7F3D0;
+  --atencao: #B45309;
+  --atencao-forte: #F59E0B;
+  --atencao-fundo: #FFFBEB;
+  --atencao-borda: #FDE68A;
+  --alerta: #DC2626;
+  --alerta-fundo: #FEF2F2;
+  --alerta-borda: #FECACA;
+  --info: #2563EB;
+  --info-fundo: #EFF6FF;
+  --info-borda: #BFDBFE;
+  --neutro-fundo: #F1F5F7;
+
+  /* -- Tipografia --------------------------------------------------------- */
+  --fonte: "Geist Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --fonte-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Consolas, monospace;
+
+  /* -- Forma ---------------------------------------------------------------- */
+  --raio: 8px;
+  --raio-sm: 6px;
+  --raio-lg: 10px;
+  --sombra-1: 0 1px 2px rgba(15, 27, 34, .05);
+  --sombra-2: 0 1px 2px rgba(15, 27, 34, .04), 0 4px 14px rgba(15, 27, 34, .06);
+  --sombra-3: 0 12px 32px rgba(15, 27, 34, .14), 0 2px 6px rgba(15, 27, 34, .06);
+  --foco: 0 0 0 3px rgba(20, 184, 166, .28);
+
+  /* -- Movimento --------------------------------------------------------- */
+  --curva: cubic-bezier(.2, .8, .2, 1);
+  --curva-mola: cubic-bezier(.34, 1.4, .64, 1);
+  --t-rapido: 140ms;
+  --t-medio: 260ms;
+  --t-lento: 520ms;
+
+  --largura-lateral: 248px;
+
+  color-scheme: light;
+}
+
+:root[data-tema="escuro"] {
+  --lateral: #081B1D;
+  --lateral-2: #0C2427;
+  --lateral-borda: #15363A;
+  --lateral-ativo: #12403F;
+
+  --fundo: #0A1316;
+  --superficie: #101C20;
+  --superficie-2: #132227;
+  --superficie-3: #1A2B31;
+  --borda: #1F3238;
+  --borda-forte: #2B434A;
+  --texto: #E7EFF1;
+  --texto-2: #A7B8BE;
+  --texto-3: #6F8389;
+
+  --marca-50: #0E2A2A;
+  --marca-100: #123634;
+
+  --credito: #34D399;
+  --credito-fundo: #0D2A22;
+  --credito-borda: #1B4D3D;
+  --atencao: #FBBF24;
+  --atencao-fundo: #2A2210;
+  --atencao-borda: #4D3C14;
+  --alerta: #F87171;
+  --alerta-fundo: #2C1416;
+  --alerta-borda: #522226;
+  --info: #60A5FA;
+  --info-fundo: #111F35;
+  --info-borda: #1E3A5F;
+  --neutro-fundo: #17262B;
+
+  --sombra-1: 0 1px 2px rgba(0, 0, 0, .3);
+  --sombra-2: 0 1px 2px rgba(0, 0, 0, .25), 0 6px 18px rgba(0, 0, 0, .25);
+  --sombra-3: 0 16px 40px rgba(0, 0, 0, .5);
+
+  color-scheme: dark;
+}

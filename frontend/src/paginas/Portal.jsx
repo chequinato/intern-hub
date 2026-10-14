@@ -1,121 +1,196 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Briefcase, ChevronRight, CircleAlert, GraduationCap, LoaderCircle, Moon, Search, Sun, UserPlus, X,
+} from "lucide-react";
 import { api } from "../api/cliente";
 import { useApiState } from "../useApiState";
 import { useSessao } from "../context/SessaoContext";
+import { useTema } from "../useTema";
+import { Logo } from "../components/Logo";
+import { useNotificar } from "../components/Notificacoes";
+import { Avatar, Esqueleto, Vazio } from "../components/Ui";
 
-// Tela inicial: escolher quem esta usando o sistema. Equivalente ao topo
-// de app.py no Streamlit - o seletor de perfil (estagiario/gestor) e,
-// dentro de cada um, o "Selecione seu nome" ou o formulario de cadastro.
+// Tela de entrada: escolher o perfil (estagiario ou gestor) e a pessoa, ou
+// cadastrar alguem novo. Nao e login - nao ha senha por pessoa (decisao da
+// Entrega 1); quem protege a API e o token, em api/seguranca.py.
 export function Portal() {
   const [perfil, setPerfil] = useState("estagiario");
+  const [cadastrando, setCadastrando] = useState(false);
+  const [busca, setBusca] = useState("");
   const navegar = useNavigate();
   const { escolherEstagiario, escolherGestor } = useSessao();
+  const { escuro, alternar } = useTema();
 
-  const { dados: estagiarios, carregando: carregandoEst, erro: erroEst, recarregar: recarregarEst } =
-    useApiState(() => api.get("/estagiarios"));
-  const { dados: gestores, carregando: carregandoGes, erro: erroGes, recarregar: recarregarGes } =
-    useApiState(() => api.get("/gestores"));
+  const estagiarios = useApiState(() => api.get("/estagiarios"));
+  const gestores = useApiState(() => api.get("/gestores"));
+  const atual = perfil === "estagiario" ? estagiarios : gestores;
+  const pessoas = (atual.dados || []).filter((p) => p.nome.toLowerCase().includes(busca.trim().toLowerCase()));
 
-  const carregando = perfil === "estagiario" ? carregandoEst : carregandoGes;
-  const erro = perfil === "estagiario" ? erroEst : erroGes;
+  function entrar(pessoa) {
+    if (perfil === "estagiario") {
+      escolherEstagiario(pessoa.id);
+      navegar(`/estagiario/${pessoa.id}`);
+    } else {
+      escolherGestor(pessoa.id);
+      navegar(`/gestor/${pessoa.id}`);
+    }
+  }
+
+  function trocarPerfil(novo) {
+    setPerfil(novo);
+    setCadastrando(false);
+    setBusca("");
+  }
+
+  const equipeDe = (gestorId) => (estagiarios.dados || []).filter((e) => e.gestor_id === gestorId).length;
 
   return (
     <div className="portal">
-      <div className="portal-folha rv">
-        <h1 className="portal-titulo">InternHub</h1>
-        <p className="portal-sub">Banco de horas do estagio</p>
-
-        <div className="perfil-toggle">
-          <button type="button" className={perfil === "estagiario" ? "on" : ""} onClick={() => setPerfil("estagiario")}>
-            Sou estagiario
-          </button>
-          <button type="button" className={perfil === "gestor" ? "on" : ""} onClick={() => setPerfil("gestor")}>
-            Sou gestor
-          </button>
+      <aside className="portal-marca">
+        <div className="marca" style={{ padding: 0 }}>
+          <Logo tamanho={38} />
+          <div className="marca-nome" style={{ fontSize: 19 }}>InternHub<span>Banco de horas do estágio</span></div>
         </div>
 
-        {erro && <p className="aviso aviso--erro" style={{ marginTop: 20 }}>{erro}</p>}
-        {carregando && !erro && <p className="empty">Carregando...</p>}
-
-        {!carregando && !erro && perfil === "estagiario" && (
-          <SelecaoEstagiario
-            estagiarios={estagiarios || []}
-            gestores={gestores || []}
-            aoEscolher={(id) => { escolherEstagiario(id); navegar(`/estagiario/${id}`); }}
-            aoCadastrar={recarregarEst}
-          />
-        )}
-
-        {!carregando && !erro && perfil === "gestor" && (
-          <SelecaoGestor
-            gestores={gestores || []}
-            aoEscolher={(id) => { escolherGestor(id); navegar(`/gestor/${id}`); }}
-            aoCadastrar={recarregarGes}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SelecaoEstagiario({ estagiarios, gestores, aoEscolher, aoCadastrar }) {
-  const [mostrarForm, setMostrarForm] = useState(estagiarios.length === 0);
-
-  return (
-    <div style={{ marginTop: 24 }}>
-      {estagiarios.length > 0 && (
-        <div className="campo">
-          <label>Selecione seu nome</label>
-          <select onChange={(e) => e.target.value && aoEscolher(Number(e.target.value))} defaultValue="">
-            <option value="" disabled>Escolha...</option>
-            {estagiarios.map((pessoa) => (
-              <option key={pessoa.id} value={pessoa.id}>{pessoa.nome}</option>
-            ))}
-          </select>
+        <div className="portal-chamada">
+          <h1>Quanto você deve, ou tem de crédito, no estágio.</h1>
+          <p>
+            O estagiário marca o ponto e o sistema faz a conta contra a meta contratada:
+            desconta o almoço, avisa quando passa do limite da lei e guarda cada ajuste
+            aprovado pelo gestor.
+          </p>
         </div>
-      )}
 
-      {estagiarios.length > 0 && (
-        <button type="button" className="botao" style={{ marginTop: 14 }} onClick={() => setMostrarForm((v) => !v)}>
-          {mostrarForm ? "Cancelar" : "Cadastrar novo estagiario"}
+        <figure className="exemplo-dia">
+          <figcaption>Como um dia entra no saldo</figcaption>
+          <ol className="exemplo-linha">
+            <li><span className="mono">09:00</span>entrada</li>
+            <li className="exemplo-almoco"><span className="mono">12:00 – 13:00</span>almoço</li>
+            <li><span className="mono">16:30</span>saída</li>
+          </ol>
+          <dl className="exemplo-conta">
+            <div><dt>Expediente</dt><dd className="mono">7h30</dd></div>
+            <div><dt>Almoço (mínimo de 1h)</dt><dd className="mono">− 1h</dd></div>
+            <div><dt>Trabalhado</dt><dd className="mono">6h30</dd></div>
+            <div><dt>Meta do dia</dt><dd className="mono">− 6h</dd></div>
+            <div className="exemplo-total"><dt>Vai para o banco de horas</dt><dd className="mono">+0h30</dd></div>
+          </dl>
+          <p className="exemplo-nota">
+            Passou de 6h no dia ou de 30h na semana? O ponto é salvo, mas aparece o aviso da Lei 11.788/2008.
+          </p>
+        </figure>
+
+        <div className="portal-rodape">Projeto de Programação em Python · UniAnchieta 2026/2</div>
+      </aside>
+
+      <main className="portal-acesso">
+        <button type="button" className="botao botao--fantasma botao--icone portal-tema" onClick={alternar} aria-label="Alternar tema">
+          {escuro ? <Sun /> : <Moon />}
         </button>
-      )}
 
-      {mostrarForm && (
-        <FormularioEstagiario
-          gestores={gestores}
-          onCriado={(criado) => { aoCadastrar(); aoEscolher(criado.id); }}
-        />
-      )}
+        <div className="portal-caixa entra">
+          <h2>Entrar</h2>
+          <p className="texto-2" style={{ marginTop: 4, marginBottom: 20 }}>Escolha o seu perfil e o seu nome.</p>
+
+          <div className="segmentado segmentado--bloco" role="tablist">
+            <button type="button" className={perfil === "estagiario" ? "ativo" : ""} onClick={() => trocarPerfil("estagiario")}>
+              <GraduationCap />Sou estagiário
+            </button>
+            <button type="button" className={perfil === "gestor" ? "ativo" : ""} onClick={() => trocarPerfil("gestor")}>
+              <Briefcase />Sou gestor
+            </button>
+          </div>
+
+          {atual.erro ? (
+            <div className="aviso aviso--alerta" style={{ marginTop: 20 }}>
+              <CircleAlert />
+              <div>
+                <strong>Não foi possível falar com a API.</strong> {atual.erro}
+                <div style={{ marginTop: 10 }}>
+                  <button type="button" className="botao botao--pequeno" onClick={() => { estagiarios.recarregar(); gestores.recarregar(); }}>Tentar de novo</button>
+                </div>
+              </div>
+            </div>
+          ) : cadastrando ? (
+            perfil === "estagiario" ? (
+              <FormularioEstagiario
+                gestores={gestores.dados || []}
+                aoCancelar={() => setCadastrando(false)}
+                aoCriar={(novo) => { estagiarios.recarregar(); entrar(novo); }}
+              />
+            ) : (
+              <FormularioGestor aoCancelar={() => setCadastrando(false)} aoCriar={(novo) => { gestores.recarregar(); entrar(novo); }} />
+            )
+          ) : (
+            <>
+              {(atual.dados || []).length > 4 && (
+                <div className="campo--com-icone" style={{ marginTop: 18 }}>
+                  <Search />
+                  <input className="entrada" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar pelo nome" aria-label="Buscar pelo nome" />
+                </div>
+              )}
+
+              <div className="lista-pessoas">
+                {atual.carregando && !atual.dados ? (
+                  [0, 1, 2].map((n) => <Esqueleto key={n} altura={58} style={{ borderRadius: 10 }} />)
+                ) : pessoas.length === 0 ? (
+                  <Vazio icone={perfil === "estagiario" ? GraduationCap : Briefcase} titulo={busca ? "Ninguém com esse nome" : "Ninguém cadastrado ainda"}>
+                    {busca ? "Confira a grafia ou cadastre uma pessoa nova." : "Cadastre a primeira pessoa para começar."}
+                  </Vazio>
+                ) : (
+                  pessoas.map((p, i) => (
+                    <button key={p.id} type="button" className="pessoa entra" style={{ "--i": i }} onClick={() => entrar(p)}>
+                      <Avatar nome={p.nome} tamanho={38} />
+                      <span className="pessoa-texto">
+                        <b>{p.nome}</b>
+                        <span>
+                          {perfil === "estagiario"
+                            ? `Meta de ${p.configuracao?.meta_horas_diaria ?? 6}h por dia`
+                            : `${equipeDe(p.id)} estagiário(s) na equipe`}
+                        </span>
+                      </span>
+                      <ChevronRight className="pessoa-seta" />
+                    </button>
+                  ))
+                )}
+              </div>
+
+              <button type="button" className="botao botao--bloco" style={{ marginTop: 14 }} onClick={() => setCadastrando(true)}>
+                <UserPlus />{perfil === "estagiario" ? "Cadastrar estagiário" : "Cadastrar gestor"}
+              </button>
+            </>
+          )}
+        </div>
+
+        <p className="portal-nota">Não há senha por pessoa: o acesso à API é protegido por token.</p>
+      </main>
     </div>
   );
 }
 
-function FormularioEstagiario({ gestores, onCriado }) {
+function FormularioEstagiario({ gestores, aoCancelar, aoCriar }) {
+  const notificar = useNotificar();
   const [nome, setNome] = useState("");
   const [metaDiaria, setMetaDiaria] = useState(6);
   const [metaSemanal, setMetaSemanal] = useState(30);
-  const [gestorId, setGestorId] = useState("");
-  const [erro, setErro] = useState(null);
+  const [gestorId, setGestorId] = useState(gestores[0]?.id ?? "");
   const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState(null);
 
   async function enviar(e) {
     e.preventDefault();
-    if (nome.trim().length < 2) {
-      setErro("Digite um nome com pelo menos 2 caracteres.");
-      return;
-    }
     setEnviando(true);
     setErro(null);
     try {
-      const criado = await api.post("/estagiarios", {
+      const novo = await api.post("/estagiarios", {
         nome: nome.trim(),
         meta_horas_diaria: Number(metaDiaria),
         meta_horas_semanal: Number(metaSemanal),
         gestor_id: gestorId ? Number(gestorId) : null,
       });
-      onCriado(criado);
+      notificar.sucesso("Cadastro feito", `Bem-vindo, ${novo.nome}.`);
+      aoCriar(novo);
     } catch (e2) {
       setErro(e2.message);
     } finally {
@@ -124,56 +199,51 @@ function FormularioEstagiario({ gestores, onCriado }) {
   }
 
   return (
-    <form className="form" style={{ marginTop: 18 }} onSubmit={enviar}>
+    <form className="pilha entra" style={{ gap: 14, marginTop: 20 }} onSubmit={enviar}>
+      <CabecalhoForm titulo="Novo estagiário" aoCancelar={aoCancelar} />
       <div className="campo">
-        <label>Nome</label>
-        <input value={nome} onChange={(e) => setNome(e.target.value)} maxLength={120} />
+        <label htmlFor="novo-nome">Nome completo</label>
+        <input id="novo-nome" value={nome} onChange={(e) => setNome(e.target.value)} minLength={2} maxLength={120} placeholder="Ana Paula Ribeiro" autoFocus required />
       </div>
-      <div className="campo-linha">
+      <div className="grade-campos" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <div className="campo">
-          <label>Meta diaria (h)</label>
-          <input type="number" step="0.5" min="1" max="24" value={metaDiaria} onChange={(e) => setMetaDiaria(e.target.value)} />
+          <label htmlFor="novo-dia">Meta por dia (h)</label>
+          <input id="novo-dia" type="number" step="0.5" min="0.5" max="24" value={metaDiaria} onChange={(e) => setMetaDiaria(e.target.value)} required />
         </div>
         <div className="campo">
-          <label>Meta semanal (h)</label>
-          <input type="number" step="1" min="1" max="168" value={metaSemanal} onChange={(e) => setMetaSemanal(e.target.value)} />
+          <label htmlFor="novo-semana">Meta por semana (h)</label>
+          <input id="novo-semana" type="number" step="1" min="1" max="168" value={metaSemanal} onChange={(e) => setMetaSemanal(e.target.value)} required />
         </div>
       </div>
       <div className="campo">
-        <label>Gestor responsavel</label>
-        <select value={gestorId} onChange={(e) => setGestorId(e.target.value)}>
+        <label htmlFor="novo-gestor">Gestor responsável</label>
+        <select id="novo-gestor" value={gestorId} onChange={(e) => setGestorId(e.target.value)}>
           <option value="">Sem gestor por enquanto</option>
-          {gestores.map((g) => (
-            <option key={g.id} value={g.id}>{g.nome}</option>
-          ))}
+          {gestores.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
         </select>
       </div>
-      {erro && <p className="aviso aviso--erro">{erro}</p>}
-      <button type="submit" className="botao" disabled={enviando}>
-        {enviando ? "Cadastrando..." : "Cadastrar"}
+      {erro && <div className="aviso aviso--alerta"><CircleAlert />{erro}</div>}
+      <button type="submit" className="botao botao--primario" disabled={enviando}>
+        {enviando ? <LoaderCircle className="girando" /> : <UserPlus />}{enviando ? "Cadastrando…" : "Cadastrar e entrar"}
       </button>
     </form>
   );
 }
 
-function SelecaoGestor({ gestores, aoEscolher, aoCadastrar }) {
-  const [mostrarForm, setMostrarForm] = useState(gestores.length === 0);
+function FormularioGestor({ aoCancelar, aoCriar }) {
+  const notificar = useNotificar();
   const [nome, setNome] = useState("");
-  const [erro, setErro] = useState(null);
   const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState(null);
 
   async function enviar(e) {
     e.preventDefault();
-    if (nome.trim().length < 2) {
-      setErro("Digite um nome com pelo menos 2 caracteres.");
-      return;
-    }
     setEnviando(true);
     setErro(null);
     try {
-      const criado = await api.post("/gestores", { nome: nome.trim() });
-      aoCadastrar();
-      aoEscolher(criado.id);
+      const novo = await api.post("/gestores", { nome: nome.trim() });
+      notificar.sucesso("Cadastro feito", `Bem-vindo, ${novo.nome}.`);
+      aoCriar(novo);
     } catch (e2) {
       setErro(e2.message);
     } finally {
@@ -182,37 +252,25 @@ function SelecaoGestor({ gestores, aoEscolher, aoCadastrar }) {
   }
 
   return (
-    <div style={{ marginTop: 24 }}>
-      {gestores.length > 0 && (
-        <div className="campo">
-          <label>Selecione seu nome</label>
-          <select onChange={(e) => e.target.value && aoEscolher(Number(e.target.value))} defaultValue="">
-            <option value="" disabled>Escolha...</option>
-            {gestores.map((g) => (
-              <option key={g.id} value={g.id}>{g.nome}</option>
-            ))}
-          </select>
-        </div>
-      )}
+    <form className="pilha entra" style={{ gap: 14, marginTop: 20 }} onSubmit={enviar}>
+      <CabecalhoForm titulo="Novo gestor" aoCancelar={aoCancelar} />
+      <div className="campo">
+        <label htmlFor="gestor-nome">Nome completo</label>
+        <input id="gestor-nome" value={nome} onChange={(e) => setNome(e.target.value)} minLength={2} maxLength={120} placeholder="Marcos Albuquerque" autoFocus required />
+      </div>
+      {erro && <div className="aviso aviso--alerta"><CircleAlert />{erro}</div>}
+      <button type="submit" className="botao botao--primario" disabled={enviando}>
+        {enviando ? <LoaderCircle className="girando" /> : <UserPlus />}{enviando ? "Cadastrando…" : "Cadastrar e entrar"}
+      </button>
+    </form>
+  );
+}
 
-      {gestores.length > 0 && (
-        <button type="button" className="botao" style={{ marginTop: 14 }} onClick={() => setMostrarForm((v) => !v)}>
-          {mostrarForm ? "Cancelar" : "Cadastrar novo gestor"}
-        </button>
-      )}
-
-      {mostrarForm && (
-        <form className="form" style={{ marginTop: 18 }} onSubmit={enviar}>
-          <div className="campo">
-            <label>Nome do gestor</label>
-            <input value={nome} onChange={(e) => setNome(e.target.value)} maxLength={120} />
-          </div>
-          {erro && <p className="aviso aviso--erro">{erro}</p>}
-          <button type="submit" className="botao" disabled={enviando}>
-            {enviando ? "Cadastrando..." : "Cadastrar gestor"}
-          </button>
-        </form>
-      )}
+function CabecalhoForm({ titulo, aoCancelar }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <h3>{titulo}</h3>
+      <button type="button" className="botao botao--fantasma botao--pequeno" onClick={aoCancelar}><X />Voltar</button>
     </div>
   );
 }

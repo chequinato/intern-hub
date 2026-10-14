@@ -1,9 +1,8 @@
 # InternHub — Frontend (React)
 
 Interface web do InternHub, em React + Vite (JavaScript puro, sem
-TypeScript). Substitui o dashboard em Streamlit: fala com a mesma API
-FastAPI (`api/app_api.py`, na raiz do projeto) por HTTP, sem tocar no
-banco nem nos modelos diretamente.
+TypeScript). Fala com a API FastAPI (`api/app_api.py`, na raiz do projeto)
+por HTTP, sem tocar no banco nem nos modelos diretamente.
 
 ## Como rodar
 
@@ -33,17 +32,24 @@ Copie `.env.example` para `.env` e ajuste se precisar:
 
 ## Estrutura
 
-- `src/api/cliente.js` — cliente HTTP único, usado por todas as telas.
-- `src/context/SessaoContext.jsx` — guarda quem está usando o sistema
-  (estagiário ou gestor selecionado), equivalente ao `st.session_state`
-  do Streamlit original.
-- `src/components/` — peças reutilizáveis (layout, número animado, selo
-  de status).
-- `src/paginas/` — uma tela por arquivo, na mesma divisão de
-  funcionalidades do `DIVISAO_RESPONSABILIDADES.md`.
-- `src/index.css` / `src/layout.css` — sistema visual do projeto (tokens
-  de cor, tipografia, composição), na mesma linguagem do projeto de
-  referência de design (papel + telemetria).
+- `src/App.jsx` — mapa de rotas. Cada tela é carregada só quando a pessoa
+  entra nela (`React.lazy`).
+- `src/api/cliente.js` — cliente HTTP único. Também traduz os erros da API
+  para português (acentos, datas dd/mm/aaaa, decimal com vírgula).
+- `src/paginas/Portal.jsx` — tela de entrada (escolha do perfil e da pessoa).
+- `src/paginas/EstagiarioArea.jsx` / `GestorArea.jsx` — carregam a pessoa e
+  o painel da API e montam a navegação de cada perfil.
+- `src/paginas/estagiario/` — Início (painel), Ponto, Solicitações,
+  Relatório, Simulação, Assistente e Configurações.
+- `src/paginas/gestor/` — Equipe (painel), Aprovações, Feriados e Auditoria.
+- `src/components/` — estrutura da página (barra lateral e superior), cartão
+  de bater ponto, gráficos (recharts), notificações e peças pequenas
+  (`Ui.jsx`: indicadores, selos, avatares, estados vazios).
+- `src/estilos/` — `tema.css` (cores do tema claro e escuro, fontes,
+  tempos de animação), `base.css`, `componentes.css`, `estrutura.css` e
+  `telas.css`.
+- `src/utils/formato.js` — datas, horas ("6,5h", "6h30") e os nomes
+  amigáveis dos campos da API.
 
 ## Build de produção
 

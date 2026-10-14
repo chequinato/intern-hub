@@ -1,9 +1,8 @@
 // Cliente HTTP compartilhado por todas as telas.
 //
-// Mesma ideia do antigo cliente do Streamlit (removido; continua no
-// historico do Git): monta a URL, manda o
-// token (se houver um configurado), trata "API fora do ar" e traduz erro da
-// API (que vem em { detail: ... }) para uma mensagem pronta de mostrar.
+// Monta a URL, manda o token (se houver um configurado), trata "API fora
+// do ar" e traduz o erro da API (que vem em { detail: ... }) para uma
+// mensagem em portugues, pronta para mostrar na tela.
 //
 // Uso:
 //   const dados = await api.get("/estagiarios");
@@ -36,7 +35,7 @@ async function chamar(verbo, caminho, { payload, params } = {}) {
     });
   } catch {
     throw new Error(
-      `Nao consegui falar com a API em ${API_URL}. Confira se ela esta ` +
+      `Não foi possível falar com a API em ${API_URL}. Confira se ela está ` +
         "rodando (uvicorn api.app_api:app --reload)."
     );
   }
@@ -53,23 +52,56 @@ async function chamar(verbo, caminho, { payload, params } = {}) {
   return corpo;
 }
 
+// As mensagens da API sao escritas sem acento (o codigo Python do grupo
+// evita acentos). Aqui elas ganham acentuacao antes de chegar na tela.
+const ACENTOS = {
+  nao: "não", saida: "saída", almoco: "almoço", horario: "horário", horarios: "horários",
+  estagiario: "estagiário", estagiarios: "estagiários", solicitacao: "solicitação",
+  solicitacoes: "solicitações", ja: "já", possivel: "possível", configuracao: "configuração",
+  invalido: "inválido", invalida: "inválida", ate: "até", voce: "você", atencao: "atenção",
+  credito: "crédito", decisao: "decisão", gestao: "gestão", minimo: "mínimo", ha: "há",
+  sera: "será", tambem: "também", periodo: "período", util: "útil",
+};
+
+export function acentuar(texto) {
+  return String(texto)
+    .replace(/\b[A-Za-z]+\b/g, (palavra) => {
+      const trocada = ACENTOS[palavra.toLowerCase()];
+      if (!trocada) return palavra;
+      return palavra[0] === palavra[0].toUpperCase() ? trocada[0].toUpperCase() + trocada.slice(1) : trocada;
+    })
+    // 2026-10-13 -> 13/10/2026 e 2.17h -> 2,17h (formato brasileiro)
+    .replace(/(\d{4})-(\d{2})-(\d{2})/g, "$3/$2/$1")
+    .replace(/(\d)\.(\d)/g, "$1,$2");
+}
+
 function mensagemDoErro(resposta, corpo) {
   const detalhe = corpo && typeof corpo === "object" ? corpo.detail : null;
 
-  if (typeof detalhe === "string") return detalhe;
+  if (resposta.status === 401) {
+    return "A API recusou o acesso (token inválido). Coloque o mesmo API_TOKEN do .env da raiz em VITE_API_TOKEN, no frontend/.env.";
+  }
+  if (resposta.status === 429) {
+    return "Muitas requisições em pouco tempo. Aguarde alguns segundos e tente de novo.";
+  }
+  if (typeof detalhe === "string") return acentuar(detalhe);
 
   // 422 do Pydantic: uma lista com um item por campo invalido.
   if (Array.isArray(detalhe)) {
-    return "Dados invalidos: " + detalhe.map((item) => item.msg || "campo invalido").join("; ");
+    return detalhe
+      .map((item) => acentuar(String(item.msg || "campo inválido").replace(/^Value error, /, "")))
+      .map((texto) => texto.charAt(0).toUpperCase() + texto.slice(1))
+      .join(". ");
   }
 
-  return `A API respondeu ${resposta.status}.`;
+  return `A API respondeu com erro ${resposta.status}.`;
 }
 
 export const api = {
   get: (caminho, params) => chamar("GET", caminho, { params }),
   post: (caminho, payload) => chamar("POST", caminho, { payload }),
   patch: (caminho, payload) => chamar("PATCH", caminho, { payload }),
+  delete: (caminho) => chamar("DELETE", caminho),
 
   // Baixa um arquivo (PDF/Excel) e devolve o Blob pronto pra download.
   async baixarArquivo(caminho, params) {

@@ -44,10 +44,12 @@ uvicorn api.app_api:app --reload
     `api/seguranca.py`);
   - sem `OPENAI_API_KEY`, o assistente de IA responde com um aviso e todo
     o resto funciona normalmente.
-- `popular_demo.py` cria um gestor (Carla Mendes), dois estagiários e as
-  últimas semanas de ponto do Lucas Andrade, com um dia pendente e um
-  pedido de ajuste esperando aprovação. Só roda com o banco vazio — sem
-  ele, o sistema abre sem nenhum cadastro.
+- `popular_demo.py` cria a gestora Carla Mendes e três estagiários com
+  cerca de três meses de ponto: Lucas Andrade (saldo positivo, um dia
+  pendente e um pedido esperando aprovação), Beatriz Souza (saldo em
+  alerta) e Rafael Lima (dias acima do limite legal), além dos feriados
+  nacionais do período e um histórico de pedidos aprovados e rejeitados.
+  Só roda com o banco vazio — sem ele, o sistema abre sem nenhum cadastro.
 
 ### 2. Frontend (React) — terminal 2
 
@@ -58,8 +60,10 @@ copy .env.example .env              # Linux/macOS: cp .env.example .env
 npm run dev
 ```
 
-Abre em `http://localhost:5173`. Na tela inicial, escolha "estagiário"
-(ex: Lucas Andrade) ou "gestor" (ex: Carla Mendes).
+Abre em `http://localhost:5173`. Na tela inicial, escolha "Sou estagiário"
+(ex: Lucas Andrade) ou "Sou gestor" (ex: Carla Mendes). As fontes (Geist) e
+os ícones (lucide-react) vêm pelo `npm install`, sem depender de internet
+depois disso.
 
 Se preencher `API_TOKEN` no `.env` da raiz, coloque o mesmo valor em
 `VITE_API_TOKEN` no `frontend/.env` — senão a API responde 401.
@@ -76,7 +80,7 @@ Na raiz do projeto, com o `.venv` ativado:
 pytest -v
 ```
 
-São 37 casos em dois arquivos:
+São 47 casos em três arquivos:
 
 - `testes/test_calculo.py` — regras do dia (horas trabalhadas, almoço
   mínimo de 1h, pendência, ordem dos horários, limite legal).
@@ -85,6 +89,9 @@ São 37 casos em dois arquivos:
   completo de ajuste com aprovação do gestor, faltas do relatório,
   exportação PDF/Excel, aviso de limite legal semanal, o bloqueio 401 sem
   token e o CORS restrito ao frontend.
+- `testes/test_entrega3.py` — as rotas da Entrega 3: ponto rápido (ordem
+  das marcações, dia encerrado, sem almoço), edição da meta, tendência mês
+  a mês, painéis do estagiário e do gestor e remoção de feriado.
 
 ## Estrutura
 
@@ -97,19 +104,44 @@ modelos/          # classes mapeadas: Estagiario, Gestor, Configuracao,
 servicos/         # regras de negocio: calculo, saldo, simulador, vencimento,
                   # feriados, solicitacao, assistente, exportacoes
 testes/           # pytest
-frontend/         # interface em React (Vite), consome a API por HTTP
+frontend/         # interface em React (Vite), consome a API por HTTP:
+                  #   src/paginas/estagiario/  painel, ponto, solicitacoes,
+                  #                            relatorio, simulacao, assistente,
+                  #                            configuracoes
+                  #   src/paginas/gestor/      equipe, aprovacoes, feriados,
+                  #                            auditoria
+                  #   src/components/          estrutura, graficos, cartao de ponto
+                  #   src/estilos/             tema (claro/escuro) e telas
 popular_demo.py   # carga de dados de exemplo
 ```
 
 ## Funcionalidades
 
-Registro de ponto com controle de almoço, cálculo de saldo (banco de
-horas), alerta de saldo negativo, aviso de limite legal de horas do
-estágio (Lei 11.788/2008 — 6h/dia, 30h/semana), relatório mensal com
-gráfico e exportação em PDF/Excel, simulador de cenários, solicitação de
-ajuste de ponto com aprovação do gestor, auditoria, calendário de
-feriados, múltiplos estagiários, assistente de IA para dúvidas sobre
-saldo, autenticação por token e rate limiting na API.
+**Estagiário**
+- Painel inicial: saldo do banco de horas, horas da semana em relação ao
+  limite legal, pendências, pedidos em aberto, tendência mês a mês e os
+  últimos dias.
+- Ponto em um clique (entrada, almoço, retorno, saída) ou lançamento do dia
+  inteiro; histórico por semana mostrando o almoço descontado e o total da
+  semana em relação a 30h.
+- Pedido de ajuste com aprovação do gestor e comprovante em PDF.
+- Relatório mensal com calendário do mês, saldo dia a dia, tendência do
+  semestre e exportação em PDF/Excel.
+- Simulador "e se eu faltar / atrasar", assistente de IA e edição da meta e
+  dos limites.
+
+**Gestor**
+- Visão da equipe: saldo de cada estagiário, quem está em alerta, quem
+  passou do limite legal e quantos pedidos esperam decisão.
+- Fila de aprovações, calendário de feriados e auditoria com filtros.
+
+**Regras e segurança**: almoço mínimo de 1h, alerta de saldo negativo,
+aviso de limite legal do estágio (Lei 11.788/2008 — 6h/dia, 30h/semana),
+vencimento do crédito antigo, autenticação por token e limite de
+requisições na API.
+
+**Interface**: tema claro e escuro, layout para celular, telas carregadas
+sob demanda e textos em português com datas no formato dd/mm/aaaa.
 
 A primeira interface foi feita em Streamlit e foi substituída pelo
 frontend em React (o código antigo continua no histórico do Git).

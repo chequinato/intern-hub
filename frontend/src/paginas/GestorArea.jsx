@@ -1,66 +1,56 @@
-import { NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { CalendarX2, ClipboardCheck, History, Users } from "lucide-react";
 import { api } from "../api/cliente";
 import { useApiState } from "../useApiState";
-import { useSessao } from "../context/SessaoContext";
+import { Estrutura } from "../components/Estrutura";
+import { CarregandoPagina, ErroCarregar } from "../components/Ui";
 
-const ABAS = [
-  { rota: "", rotulo: "Aprovacoes" },
-  { rota: "auditoria", rotulo: "Auditoria" },
-];
-
-// Cabecalho + navegacao da area do gestor: fila de aprovacoes e auditoria
-// geral (todos os estagiarios, nao so os dele).
+// Area do gestor: visao da equipe, fila de aprovacoes, feriados e
+// auditoria. O painel da equipe (GET /painel/gestor/{id}) alimenta o
+// contador de pedidos na barra lateral.
 export function GestorArea() {
   const { id } = useParams();
   const gestorId = Number(id);
-  const navegar = useNavigate();
-  const { sair } = useSessao();
 
-  const { dados: gestor, carregando, erro } = useApiState(
-    () => api.get("/gestores").then((lista) => lista.find((g) => g.id === gestorId)),
+  const gestor = useApiState(
+    () => api.get("/gestores").then((lista) => {
+      const encontrado = lista.find((g) => g.id === gestorId);
+      if (!encontrado) throw new Error(`Gestor ${gestorId} não encontrado.`);
+      return encontrado;
+    }),
     [gestorId]
   );
-  const { dados: equipe } = useApiState(() => api.get("/estagiarios"), []);
+  const painel = useApiState(() => api.get(`/painel/gestor/${gestorId}`), [gestorId]);
 
-  function trocarPessoa() {
-    sair();
-    navegar("/");
+  if (gestor.erro) {
+    return <div className="conteudo"><ErroCarregar mensagem={gestor.erro} aoTentar={gestor.recarregar} /></div>;
+  }
+  if (!gestor.dados) {
+    return <div className="conteudo"><CarregandoPagina /></div>;
   }
 
-  if (carregando) return <p className="empty" style={{ marginTop: 40 }}>Carregando...</p>;
-  if (erro || !gestor) return <p className="aviso aviso--erro" style={{ marginTop: 40 }}>Gestor nao encontrado.</p>;
+  const itens = [
+    { rota: "", rotulo: "Equipe", titulo: "Visão da equipe", icone: Users, grupo: "Visão geral" },
+    { rota: "aprovacoes", rotulo: "Aprovações", titulo: "Fila de aprovações", icone: ClipboardCheck, grupo: "Gestão", contador: painel.dados?.pedidos_na_fila },
+    { rota: "feriados", rotulo: "Feriados", titulo: "Calendário de feriados", icone: CalendarX2, grupo: "Gestão" },
+    { rota: "auditoria", rotulo: "Auditoria", titulo: "Histórico de pedidos", icone: History, grupo: "Gestão" },
+  ];
 
-  const sobGestao = (equipe || []).filter((p) => p.gestor_id === gestorId).length;
+  const contexto = {
+    gestor: gestor.dados,
+    gestorId,
+    painel: painel.dados,
+    painelErro: painel.erro,
+    recarregar: painel.recarregar,
+  };
 
   return (
-    <>
-      <header className="masthead">
-        <div>
-          <h1 className="masthead-title">{gestor.nome}</h1>
-          <p className="masthead-sub">Gestor #{gestor.id}</p>
-        </div>
-        <div className="masthead-meta">
-          <span>Estagiarios sob gestao <b>{sobGestao}</b></span>
-          <button type="button" className="masthead-sair" onClick={trocarPessoa}>Trocar pessoa</button>
-        </div>
-      </header>
-
-      <nav className="nav">
-        {ABAS.map((aba) => (
-          <NavLink
-            key={aba.rota}
-            to={aba.rota}
-            end={aba.rota === ""}
-            className={({ isActive }) => `nav-item${isActive ? " on" : ""}`}
-          >
-            {aba.rotulo}
-          </NavLink>
-        ))}
-      </nav>
-
-      <div className="pagina">
-        <Outlet context={{ gestorId }} />
-      </div>
-    </>
+    <Estrutura
+      base={`/gestor/${gestorId}`}
+      pessoa={gestor.dados.nome}
+      papel="Gestor"
+      itens={itens}
+      contexto={contexto}
+    />
   );
 }

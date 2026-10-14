@@ -1,0 +1,148 @@
+/* ==========================================================================
+   ESTRUTURA - barra lateral, barra superior e area de conteudo.
+   No celular (< 960px) a barra lateral vira uma gaveta que abre pelo botao
+   de menu da barra superior.
+   ========================================================================== */
+
+.app { display: grid; grid-template-columns: var(--largura-lateral) minmax(0, 1fr); min-height: 100vh; }
+
+/* -- Barra lateral --------------------------------------------------------- */
+
+.lateral {
+  position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column;
+  background: var(--lateral); color: var(--lateral-texto);
+  border-right: 1px solid var(--lateral-borda);
+  padding: 18px 14px 14px;
+  z-index: 30;
+}
+.marca { display: flex; align-items: center; gap: 10px; padding: 2px 8px 18px; color: var(--lateral-texto-forte); }
+.marca-simbolo {
+  width: 32px; height: 32px; border-radius: 9px; flex: none;
+  display: grid; place-items: center;
+  background: var(--marca-500); color: var(--marca-900);
+}
+.marca-simbolo svg { width: 18px; height: 18px; stroke-width: 2.4; }
+.marca-nome { font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
+.marca-nome span { display: block; font-size: 11.5px; font-weight: 500; color: var(--lateral-texto); letter-spacing: 0; margin-top: 1px; }
+
+.perfil-lateral {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px; margin-bottom: 14px; border-radius: var(--raio);
+  background: var(--lateral-2); border: 1px solid var(--lateral-borda);
+}
+.perfil-lateral .avatar { --tam: 34px; }
+.perfil-lateral .nome { color: var(--lateral-texto-forte); font-weight: 600; font-size: 13.5px; line-height: 1.25; }
+.perfil-lateral .papel { font-size: 12px; color: var(--lateral-texto); }
+
+.nav-grupo { font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .08em; color: #6F9693; padding: 14px 10px 6px; }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav a {
+  display: flex; align-items: center; gap: 11px;
+  height: 38px; padding: 0 10px; border-radius: 8px;
+  color: var(--lateral-texto); font-weight: 520; font-size: 14px; text-decoration: none;
+  position: relative;
+  transition: background var(--t-rapido) var(--curva), color var(--t-rapido) var(--curva);
+}
+.nav a svg { width: 18px; height: 18px; flex: none; opacity: .85; }
+.nav a:hover { background: var(--lateral-2); color: var(--lateral-texto-forte); }
+.nav a.ativo { background: var(--lateral-ativo); color: var(--lateral-texto-forte); }
+.nav a.ativo svg { color: var(--marca-400); opacity: 1; }
+.nav a.ativo::before {
+  content: ""; position: absolute; left: -14px; top: 9px; bottom: 9px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--marca-400);
+}
+.nav a .contador { margin-left: auto; }
+
+.lateral-rodape { margin-top: auto; display: flex; flex-direction: column; gap: 2px; padding-top: 12px; border-top: 1px solid var(--lateral-borda); }
+.lateral-rodape button {
+  display: flex; align-items: center; gap: 11px; height: 38px; padding: 0 10px; border-radius: 8px;
+  color: var(--lateral-texto); font-weight: 520; font-size: 14px; text-align: left;
+  transition: background var(--t-rapido) var(--curva), color var(--t-rapido) var(--curva);
+}
+.lateral-rodape button svg { width: 18px; height: 18px; }
+.lateral-rodape button:hover { background: var(--lateral-2); color: var(--lateral-texto-forte); }
+.status-api { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 8px 10px 2px; color: #6F9693; }
+.status-api i { width: 7px; height: 7px; border-radius: 50%; background: var(--marca-400); }
+.status-api.fora i { background: #F87171; }
+
+/* -- Area principal -------------------------------------------------------- */
+
+.principal { min-width: 0; display: flex; flex-direction: column; }
+
+.topo {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 14px;
+  height: 64px; padding: 0 32px;
+  background: color-mix(in srgb, var(--fundo) 86%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--borda);
+}
+.topo-menu { display: none; }
+.topo-titulo { min-width: 0; }
+.topo-titulo .trilha { font-size: 12.5px; color: var(--texto-3); display: flex; align-items: center; gap: 6px; }
+.topo-titulo .trilha svg { width: 13px; height: 13px; }
+.topo-titulo h1 { font-size: 17px; letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topo-acoes { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.relogio-topo {
+  display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px;
+  border-radius: 99px; background: var(--superficie); border: 1px solid var(--borda);
+  font-size: 13px; color: var(--texto-2); white-space: nowrap;
+}
+.relogio-topo svg { width: 15px; height: 15px; color: var(--marca-600); }
+.relogio-topo b { color: var(--texto); font-weight: 600; }
+
+.conteudo {
+  width: 100%; max-width: 1240px; margin: 0 auto;
+  padding: 28px 32px 56px;
+  animation: subir var(--t-medio) var(--curva) both;
+}
+
+.cabecalho-pagina { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+.cabecalho-pagina h1 { font-size: 26px; }
+.cabecalho-pagina p { color: var(--texto-2); margin-top: 4px; font-size: 14.5px; }
+.cabecalho-pagina .acoes { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Grades de layout das telas */
+.grade { display: grid; gap: 16px; }
+.grade-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grade-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grade-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grade-principal { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); align-items: start; }
+.pilha { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.espaco { height: 16px; }
+
+/* Fundo escurecido da gaveta (celular) */
+.veu { display: none; }
+
+@media (max-width: 1100px) {
+  .grade-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grade-principal { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 960px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .lateral {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 272px;
+    transform: translateX(-100%); transition: transform var(--t-medio) var(--curva);
+    box-shadow: var(--sombra-3);
+  }
+  .app.gaveta-aberta .lateral { transform: none; }
+  .app.gaveta-aberta .veu {
+    display: block; position: fixed; inset: 0; z-index: 25;
+    background: rgba(5, 15, 18, .45); animation: aparecer var(--t-rapido) var(--curva);
+  }
+  .topo { padding: 0 16px; }
+  .topo-menu { display: inline-flex; }
+  .relogio-topo .data-longa { display: none; }
+  .conteudo { padding: 20px 16px 48px; }
+  .grade-3, .grade-2 { grid-template-columns: minmax(0, 1fr); }
+  .cabecalho-pagina h1 { font-size: 22px; }
+}
+
+@media (max-width: 560px) {
+  .grade-4 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  .indicador { padding: 14px; }
+  .indicador-valor { font-size: 24px; }
+  .relogio-topo { display: none; }
+}

@@ -1,10 +1,21 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>InternHub</title>
+    <meta name="description" content="InternHub - banco de horas do estágio: ponto, saldo, relatórios e aprovação de ajustes." />
+    <meta name="theme-color" content="#0B2A2C" />
+    <title>InternHub · Banco de horas do estágio</title>
+    <script>
+      // Aplica o tema salvo antes do React carregar, para a tela nao piscar
+      // em branco quando o tema escolhido e o escuro (ver src/useTema.js).
+      try {
+        var salvo = localStorage.getItem("internhub-tema");
+        var escuro = salvo ? salvo === "escuro" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.tema = escuro ? "escuro" : "claro";
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

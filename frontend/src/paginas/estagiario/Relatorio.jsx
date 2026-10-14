@@ -1,137 +1,247 @@
 import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
-import { api } from "../api/cliente";
-import { useApiState } from "../useApiState";
-import { NumeroMecanico } from "../components/NumeroMecanico";
+import {
+  Bar, CartesianGrid, Cell, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from "recharts";
+import {
+  ChevronLeft, ChevronRight, FileSpreadsheet, FileText, Info, LoaderCircle, TrendingUp,
+} from "lucide-react";
+import { acentuar, api } from "../../api/cliente";
+import { useApiState } from "../../useApiState";
+import { DicaGrafico } from "../../components/DicaGrafico";
+import { EIXO_COM_ZERO, GraficoTendencia } from "../../components/Graficos";
+import { useNotificar } from "../../components/Notificacoes";
+import { CarregandoPagina, ErroCarregar, Indicador, Numero, Vazio } from "../../components/Ui";
+import { formatarHoras, formatarSaldo, hojeIso, horasEMinutos, MESES, nomeDoMes } from "../../utils/formato";
 
-const MESES = [
-  "Janeiro", "Fevereiro", "Marco", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-];
+const DIAS_CABECALHO = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
 
-function agora() {
-  const hoje = new Date();
-  return { mes: hoje.getMonth() + 1, ano: hoje.getFullYear() };
-}
-
-// Relatorio mensal: totais do mes + grafico de evolucao do saldo diario
-// + exportacao em PDF/Excel (funcionalidade 9 do README).
+// Relatorio mensal (funcionalidade 9) com o que a Entrega 3 acrescentou:
+// calendario do mes, saldo dia a dia, tendencia do semestre (funcionalidade
+// 19) e exportacao em PDF/Excel.
 export function Relatorio() {
   const { estagiarioId } = useOutletContext();
-  const [{ mes, ano }, setPeriodo] = useState(agora());
+  const notificar = useNotificar();
+  const hoje = new Date();
+  const [periodo, setPeriodo] = useState({ ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 });
   const [baixando, setBaixando] = useState(null);
-  const [erroExport, setErroExport] = useState(null);
 
-  const { dados, carregando, erro } = useApiState(
-    () => api.get(`/relatorio/${estagiarioId}`, { mes, ano }),
-    [estagiarioId, mes, ano]
+  const relatorio = useApiState(
+    () => api.get(`/relatorio/${estagiarioId}`, { mes: periodo.mes, ano: periodo.ano }),
+    [estagiarioId, periodo.mes, periodo.ano]
   );
+  const tendencia = useApiState(() => api.get(`/relatorio/${estagiarioId}/tendencia`), [estagiarioId]);
+  const feriados = useApiState(() => api.get("/feriados"), []);
+
+  function mudarMes(delta) {
+    setPeriodo(({ ano, mes }) => {
+      const d = new Date(ano, mes - 1 + delta, 1);
+      return { ano: d.getFullYear(), mes: d.getMonth() + 1 };
+    });
+  }
 
   async function exportar(formato) {
     setBaixando(formato);
-    setErroExport(null);
     try {
-      const blob = await api.baixarArquivo(`/relatorio/${estagiarioId}/exportar`, { mes, ano, formato });
-      const extensao = formato === "pdf" ? "pdf" : "xlsx";
-      dispararDownload(blob, `relatorio_${estagiarioId}_${mes}_${ano}.${extensao}`);
+      const blob = await api.baixarArquivo(`/relatorio/${estagiarioId}/exportar`, { mes: periodo.mes, ano: periodo.ano, formato });
+      const nome = `relatorio_${String(periodo.mes).padStart(2, "0")}_${periodo.ano}.${formato === "pdf" ? "pdf" : "xlsx"}`;
+      dispararDownload(blob, nome);
+      notificar.sucesso("Relatório exportado", nome);
     } catch (e) {
-      setErroExport(e.message);
+      notificar.erro("Não foi possível exportar", e.message);
     } finally {
       setBaixando(null);
     }
   }
 
+  const ehMesAtual = periodo.ano === hoje.getFullYear() && periodo.mes === hoje.getMonth() + 1;
+  const dados = relatorio.dados;
+
   return (
     <>
-      <div className="section-mark"><span className="name">Relatorio mensal</span></div>
-
-      <div className="campo-linha" style={{ maxWidth: 340, marginBottom: 20 }}>
-        <div className="campo">
-          <label>Mes</label>
-          <select value={mes} onChange={(e) => setPeriodo((p) => ({ ...p, mes: Number(e.target.value) }))}>
-            {MESES.map((nome, i) => <option key={i} value={i + 1}>{nome}</option>)}
-          </select>
+      <div className="cabecalho-pagina entra">
+        <div>
+          <h1>Relatório mensal</h1>
+          <p>Horas, faltas e saldo do mês, com exportação para PDF e Excel.</p>
         </div>
-        <div className="campo">
-          <label>Ano</label>
-          <input type="number" value={ano} onChange={(e) => setPeriodo((p) => ({ ...p, ano: Number(e.target.value) }))} />
+        <div className="acoes">
+          <div className="navegador-mes navegador-mes--destaque">
+            <button type="button" className="botao botao--fantasma botao--icone" onClick={() => mudarMes(-1)} aria-label="Mês anterior"><ChevronLeft /></button>
+            <span>{nomeDoMes(periodo.mes)} de {periodo.ano}</span>
+            <button type="button" className="botao botao--fantasma botao--icone" onClick={() => mudarMes(1)} disabled={ehMesAtual} aria-label="Próximo mês"><ChevronRight /></button>
+          </div>
+          <button type="button" className="botao" onClick={() => exportar("pdf")} disabled={!!baixando}>
+            {baixando === "pdf" ? <LoaderCircle className="girando" /> : <FileText />}PDF
+          </button>
+          <button type="button" className="botao" onClick={() => exportar("excel")} disabled={!!baixando}>
+            {baixando === "excel" ? <LoaderCircle className="girando" /> : <FileSpreadsheet />}Excel
+          </button>
         </div>
       </div>
 
-      {carregando && <p className="empty">Carregando...</p>}
-      {erro && <p className="aviso aviso--erro">{erro}</p>}
-
-      {!carregando && !erro && dados && (
+      {relatorio.erro ? (
+        <ErroCarregar mensagem={relatorio.erro} aoTentar={relatorio.recarregar} />
+      ) : !dados ? (
+        <CarregandoPagina />
+      ) : (
         <>
-          <div className="band">
-            <div className="band-grid">
-              <div className="readout">
-                <div className="readout-label">Horas trabalhadas</div>
-                <div className="readout-val"><NumeroMecanico valor={dados.total_horas_trabalhadas} casasDecimais={1} sufixo="h" /></div>
+          {dados.aviso_vencimento && (
+            <div className="aviso entra" style={{ marginBottom: 16 }}><Info /><div>{acentuar(dados.aviso_vencimento)}</div></div>
+          )}
+
+          <div className="cartao faixa entra">
+            <Indicador rotulo="Horas trabalhadas" rodape={`em ${dados.dias_uteis_trabalhados} dia(s) com ponto`}>
+              <Numero valor={dados.total_horas_trabalhadas} formato="horas" />
+            </Indicador>
+            <Indicador rotulo="Média por dia" rodape="horas por dia com ponto">
+              <Numero valor={dados.dias_uteis_trabalhados ? dados.total_horas_trabalhadas / dados.dias_uteis_trabalhados : 0} formato="horas" />
+            </Indicador>
+            <Indicador rotulo="Faltas"
+              rodape={dados.faltas ? "dias úteis sem ponto" : "nenhuma falta no mês"}>
+              <Numero valor={dados.faltas} />
+            </Indicador>
+            <Indicador destaque rotulo="Saldo acumulado" rodape="banco de horas até hoje">
+              <span className={dados.saldo_acumulado >= 0 ? "credito" : "alerta"}><Numero valor={dados.saldo_acumulado} formato="saldo" /></span>
+            </Indicador>
+          </div>
+
+          <div className="espaco" />
+
+          <div className="grade grade-principal">
+            <section className="cartao entra" style={{ "--i": 5 }}>
+              <div className="cartao-cabeca">
+                <h2>Saldo dia a dia</h2>
+                <span className="sub">barras: saldo do dia · linha: acumulado no mês</span>
               </div>
-              <div className="readout">
-                <div className="readout-label">Dias trabalhados</div>
-                <div className="readout-val"><NumeroMecanico valor={dados.dias_uteis_trabalhados} /></div>
+              <div className="cartao-corpo">
+                <GraficoDoMes evolucao={dados.evolucao_diaria} />
               </div>
-              <div className="readout">
-                <div className="readout-label">Faltas</div>
-                <div className={`readout-val${dados.faltas > 0 ? " readout-val--amber" : ""}`}>
-                  <NumeroMecanico valor={dados.faltas} />
-                </div>
+            </section>
+
+            <section className="cartao entra" style={{ "--i": 6 }}>
+              <div className="cartao-cabeca">
+                <h2>Calendário</h2>
+                <span className="sub">{MESES[periodo.mes - 1]}</span>
               </div>
-              <div className="readout">
-                <div className="readout-label">Saldo acumulado</div>
-                <div className={`readout-val${dados.saldo_acumulado < 0 ? " readout-val--signal" : " readout-val--verde"}`}>
-                  <NumeroMecanico valor={dados.saldo_acumulado} casasDecimais={2} sufixo="h" />
-                </div>
+              <div className="cartao-corpo">
+                <Calendario
+                  ano={periodo.ano}
+                  mes={periodo.mes}
+                  evolucao={dados.evolucao_diaria}
+                  faltas={dados.datas_faltas || []}
+                  feriados={feriados.dados || []}
+                />
               </div>
+            </section>
+          </div>
+
+          <div className="espaco" />
+
+          <section className="cartao entra" style={{ "--i": 7 }}>
+            <div className="cartao-cabeca">
+              <h2>Tendência do semestre</h2>
+              <span className="sub">saldo de cada mês e o acumulado</span>
             </div>
-          </div>
-
-          {dados.aviso_vencimento && <p className="aviso">{dados.aviso_vencimento}</p>}
-
-          <div className="section-mark" style={{ marginTop: 24 }}><span className="name">Evolucao do saldo diario</span></div>
-          <GraficoEvolucao dados={dados.evolucao_diaria} />
-
-          <div className="section-mark" style={{ marginTop: 28 }}><span className="name">Exportar</span></div>
-          {erroExport && <p className="aviso aviso--erro">{erroExport}</p>}
-          <div style={{ display: "flex", gap: 12 }}>
-            <button type="button" className="botao" disabled={baixando === "pdf"} onClick={() => exportar("pdf")}>
-              {baixando === "pdf" ? "Gerando..." : "Baixar PDF"}
-            </button>
-            <button type="button" className="botao" disabled={baixando === "excel"} onClick={() => exportar("excel")}>
-              {baixando === "excel" ? "Gerando..." : "Baixar Excel"}
-            </button>
-          </div>
+            <div className="cartao-corpo">
+              {tendencia.dados ? <GraficoTendencia tendencia={tendencia.dados} /> : <div className="esqueleto" style={{ height: 250 }} />}
+            </div>
+          </section>
         </>
       )}
     </>
   );
 }
 
-function GraficoEvolucao({ dados }) {
-  if (!dados || dados.length === 0) return <p className="empty">Sem registros neste periodo.</p>;
-
-  const serie = dados.map((d) => ({ dia: d.data.slice(8, 10), saldo: d.saldo_do_dia }));
-
+function GraficoDoMes({ evolucao }) {
+  if (!evolucao.length) {
+    return <Vazio icone={TrendingUp} titulo="Sem ponto neste mês">Escolha outro mês na seta acima.</Vazio>;
+  }
+  // Acumulado do mes: cada dia soma o saldo dele ao total dos anteriores.
+  const dados = evolucao.reduce((lista, d) => {
+    const anterior = lista.length ? lista[lista.length - 1].acumulado : 0;
+    lista.push({ ...d, dia: d.data.slice(8, 10), acumulado: Number((anterior + d.saldo_do_dia).toFixed(2)) });
+    return lista;
+  }, []);
   return (
-    <div className="card" style={{ height: 280 }}>
+    <div style={{ height: 290 }}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={serie} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-          <CartesianGrid stroke="var(--rule-soft)" vertical={false} />
-          <XAxis dataKey="dia" stroke="var(--ink-45)" fontSize={11} tickLine={false} axisLine={{ stroke: "var(--rule)" }} />
-          <YAxis stroke="var(--ink-45)" fontSize={11} tickLine={false} axisLine={false} />
-          <ReferenceLine y={0} stroke="var(--rule-hard)" />
+        <ComposedChart data={dados} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
+          <CartesianGrid stroke="var(--borda)" vertical={false} />
+          <XAxis dataKey="dia" tickLine={false} axisLine={false} tick={{ fill: "var(--texto-3)", fontSize: 11 }} />
+          <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--texto-3)", fontSize: 12 }} tickFormatter={(v) => `${v}h`} domain={EIXO_COM_ZERO} />
+          <ReferenceLine y={0} stroke="var(--borda-forte)" />
           <Tooltip
-            contentStyle={{ background: "var(--paper)", border: "1px solid var(--rule-hard)", fontFamily: "var(--mono)", fontSize: 12 }}
-            formatter={(v) => [`${v.toFixed(2)}h`, "Saldo do dia"]}
-            labelFormatter={(d) => `Dia ${d}`}
+            cursor={{ fill: "var(--superficie-3)" }}
+            content={<DicaGrafico
+              titulo={(p) => `Dia ${p.dia}`}
+              linhas={[
+                { rotulo: "Trabalhado", valor: (p) => horasEMinutos(p.horas_trabalhadas) },
+                { rotulo: "Saldo do dia", valor: (p) => formatarSaldo(p.saldo_do_dia, 2) },
+                { rotulo: "Acumulado no mês", valor: (p) => formatarSaldo(p.acumulado, 2) },
+              ]}
+            />}
           />
-          <Line type="monotone" dataKey="saldo" stroke="var(--signal)" strokeWidth={1.5} dot={{ r: 2.5 }} isAnimationActive />
-        </LineChart>
+          <Bar dataKey="saldo_do_dia" radius={[4, 4, 4, 4]} maxBarSize={18} animationDuration={800}>
+            {dados.map((d) => <Cell key={d.data} fill={d.saldo_do_dia >= 0 ? "var(--marca-400)" : "var(--alerta)"} fillOpacity={0.8} />)}
+          </Bar>
+          <Line type="monotone" dataKey="acumulado" stroke="var(--marca-700)" strokeWidth={2.2} dot={false} animationDuration={1200} />
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
+  );
+}
+
+function Calendario({ ano, mes, evolucao, faltas, feriados }) {
+  const trabalhados = new Map(evolucao.map((d) => [d.data, d]));
+  const listaFaltas = new Set(faltas);
+  const nomesFeriados = new Map(feriados.map((f) => [f.data, f.descricao]));
+  const hojeTexto = hojeIso();
+  const totalDias = new Date(ano, mes, 0).getDate();
+  const deslocamento = (new Date(ano, mes - 1, 1).getDay() + 6) % 7;
+
+  const celulas = [];
+  for (let n = 0; n < deslocamento; n += 1) celulas.push(<div key={`v${n}`} />);
+  for (let dia = 1; dia <= totalDias; dia += 1) {
+    const iso = `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+    const semana = (new Date(ano, mes - 1, dia).getDay() + 6) % 7;
+    let tipo = "vazio";
+    let dica = "";
+    if (trabalhados.has(iso)) {
+      const d = trabalhados.get(iso);
+      tipo = d.saldo_do_dia >= 0 ? "trabalhado" : "curto";
+      dica = `${horasEMinutos(d.horas_trabalhadas)} · saldo ${formatarSaldo(d.saldo_do_dia, 2)}`;
+    } else if (nomesFeriados.has(iso)) {
+      tipo = "feriado";
+      dica = nomesFeriados.get(iso);
+    } else if (listaFaltas.has(iso)) {
+      tipo = "falta";
+      dica = "Falta: dia útil sem ponto";
+    } else if (semana >= 5) {
+      tipo = "fds";
+    } else if (iso > hojeTexto) {
+      tipo = "futuro";
+    }
+    celulas.push(
+      <div key={iso} className={`cal-dia cal-dia--${tipo}${iso === hojeTexto ? " cal-dia--hoje" : ""}`} title={dica} style={{ "--i": dia }}>
+        <span>{dia}</span>
+        {trabalhados.has(iso) && <small>{formatarHoras(trabalhados.get(iso).horas_trabalhadas)}</small>}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="calendario">
+        {DIAS_CABECALHO.map((d) => <div key={d} className="cal-cabeca">{d}</div>)}
+        {celulas}
+      </div>
+      <div className="legenda-grafico" style={{ marginTop: 14 }}>
+        <span><i className="cal-legenda cal-dia--trabalhado" />Meta cumprida</span>
+        <span><i className="cal-legenda cal-dia--curto" />Abaixo da meta</span>
+        <span><i className="cal-legenda cal-dia--falta" />Falta</span>
+        <span><i className="cal-legenda cal-dia--feriado" />Feriado</span>
+      </div>
+    </>
   );
 }
 

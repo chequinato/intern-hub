@@ -1,29 +1,33 @@
-// Alterna entre "papel" (claro) e "modo tinta" (escuro), aplicando o
-// atributo data-mode no <html> - e o que index.css usa para trocar as
-// variaveis de cor. Guarda a escolha no localStorage so como conveniencia
-// (lembrar o tema na proxima visita), nada critico.
+// Alterna entre o tema claro e o escuro, aplicando o atributo data-tema no
+// <html> - e o que estilos/tema.css usa para trocar as variaveis de cor.
+// Na primeira visita segue a preferencia do sistema operacional; depois
+// guarda a escolha no localStorage (so conveniencia, nada critico).
 
 import { useEffect, useState } from "react";
 
 const CHAVE_STORAGE = "internhub-tema";
 
+function temaInicial() {
+  try {
+    const salvo = localStorage.getItem(CHAVE_STORAGE);
+    if (salvo === "escuro" || salvo === "claro") return salvo;
+  } catch {
+    // sem storage: cai na preferencia do sistema
+  }
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "escuro" : "claro";
+}
+
 export function useTema() {
-  const [modoTinta, setModoTinta] = useState(() => {
-    try {
-      return localStorage.getItem(CHAVE_STORAGE) === "ink";
-    } catch {
-      return false;
-    }
-  });
+  const [tema, setTema] = useState(temaInicial);
 
   useEffect(() => {
-    document.documentElement.dataset.mode = modoTinta ? "ink" : "paper";
+    document.documentElement.dataset.tema = tema;
     try {
-      localStorage.setItem(CHAVE_STORAGE, modoTinta ? "ink" : "paper");
+      localStorage.setItem(CHAVE_STORAGE, tema);
     } catch {
       // sem storage disponivel: o tema so nao sobrevive a um F5.
     }
-  }, [modoTinta]);
+  }, [tema]);
 
-  return { modoTinta, alternar: () => setModoTinta((atual) => !atual) };
+  return { escuro: tema === "escuro", alternar: () => setTema((t) => (t === "escuro" ? "claro" : "escuro")) };
 }
