@@ -194,6 +194,7 @@ class RelatorioMensalResponse(BaseModel):
     total_horas_trabalhadas: float
     dias_uteis_trabalhados: int
     faltas: int
+    datas_faltas: List[date] = []
     saldo_acumulado: float
     aviso_vencimento: Optional[str] = None
     evolucao_diaria: List[RelatorioDiario]

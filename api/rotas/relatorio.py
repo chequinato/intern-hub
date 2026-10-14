@@ -70,6 +70,9 @@ def obter_relatorio(estagiario_id: int, mes: int, ano: int, session: Session = D
         
     # 3. LÓGICA DE FALTAS (O coração do seu requisito!)
     faltas = 0
+    # Entrega 3: alem do total, a lista das datas - o calendario do
+    # relatorio pinta cada falta no dia certo, com a mesma regra daqui.
+    datas_faltas = []
     hoje = date.today()
     ultimo_dia_mes = calendar.monthrange(ano, mes)[1]
     
@@ -94,6 +97,7 @@ def obter_relatorio(estagiario_id: int, mes: int, ano: int, session: Session = D
         # A Mágica: Se é dia útil (sem fim de semana e sem feriado) E a pessoa não bateu ponto...
         if eh_dia_util(data_atual, session) and dia not in dias_trabalhados:
             faltas += 1
+            datas_faltas.append(data_atual)
 
     # 4. Busca avisos e saldo final
     saldo_atual = calcular_saldo_acumulado(estagiario_id, session)
@@ -105,6 +109,7 @@ def obter_relatorio(estagiario_id: int, mes: int, ano: int, session: Session = D
         "total_horas_trabalhadas": round(total_horas, 2),
         "dias_uteis_trabalhados": len(registros_mes),
         "faltas": faltas, # Faltas calculadas perfeitamente!
+        "datas_faltas": datas_faltas,
         "saldo_acumulado": saldo_atual,
         "aviso_vencimento": aviso,
         "evolucao_diaria": evolucao

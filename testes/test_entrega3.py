@@ -139,6 +139,9 @@ def test_tendencia_agrupa_por_mes_e_acumula(cliente):
         (9, 2.0, 2.0),
         (10, -1.0, 1.0),
     ]
+    # O relatorio de setembro lista as datas das faltas (o calendario usa).
+    relatorio = cliente.get(f"/relatorio/{estagiario['id']}", params={"mes": 9, "ano": 2026}).json()
+    assert relatorio["datas_faltas"] == ["2026-09-30"]
     # O ultimo acumulado bate com o saldo do banco de horas.
     assert cliente.get(f"/saldo/{estagiario['id']}").json()["saldo_acumulado"] == 1.0
 

@@ -41,11 +41,11 @@ FERIADOS_2026 = {
     date(2026, 4, 21): "Tiradentes",
     date(2026, 5, 1): "Dia do Trabalho",
     date(2026, 6, 4): "Corpus Christi",
-    date(2026, 9, 7): "Independencia do Brasil",
+    date(2026, 9, 7): "Independência do Brasil",
     date(2026, 10, 12): "Nossa Senhora Aparecida",
     date(2026, 11, 2): "Finados",
-    date(2026, 11, 15): "Proclamacao da Republica",
-    date(2026, 11, 20): "Dia da Consciencia Negra",
+    date(2026, 11, 15): "Proclamação da República",
+    date(2026, 11, 20): "Dia da Consciência Negra",
     date(2026, 12, 25): "Natal",
 }
 
@@ -113,7 +113,7 @@ def main() -> None:
     session.add(SolicitacaoAjuste(
         registro=dia_pendente, estagiario=lucas,
         campo_alterado="retorno_almoco", horario_sugerido=time(13, 0),
-        justificativa="Esqueci de bater o retorno do almoco.",
+        justificativa="Esqueci de bater o retorno do almoço.",
     ))
 
     # Beatriz: um mes de dias curtos - o saldo cai abaixo do alerta de -5h.
@@ -135,14 +135,14 @@ def main() -> None:
     resposta = datetime.combine(dias_rafael[-3], time(10, 0))
     session.add(SolicitacaoAjuste(
         registro=ajustado, estagiario=rafael, campo_alterado="entrada",
-        horario_sugerido=time(9, 0), justificativa="O leitor de cracha estava fora do ar.",
+        horario_sugerido=time(9, 0), justificativa="O leitor de crachá estava fora do ar.",
         status="aprovado", data_solicitacao=resposta - timedelta(hours=20),
         data_resposta=resposta, gestor=carla,
     ))
     registro_beatriz = session.query(RegistroPonto).filter_by(estagiario=beatriz).first()
     session.add(SolicitacaoAjuste(
         registro=registro_beatriz, estagiario=beatriz, campo_alterado="saida",
-        horario_sugerido=time(16, 0), justificativa="Fiquei ate mais tarde na reuniao.",
+        horario_sugerido=time(16, 0), justificativa="Fiquei até mais tarde na reunião.",
         status="rejeitado", data_solicitacao=resposta - timedelta(days=9),
         data_resposta=resposta - timedelta(days=8), gestor=carla,
     ))
