@@ -1,9 +1,18 @@
 """Popula o banco com dados de demonstracao.
 
 Serve para quem abre o projeto pela primeira vez (ou para a apresentacao)
-ver o sistema com dados, sem precisar cadastrar tudo na mao: um gestor,
-dois estagiarios e as ultimas semanas de ponto de um deles - incluindo um
-dia com pendencia de almoco e um pedido de ajuste esperando o gestor.
+ver o sistema com dados, sem precisar cadastrar tudo na mao:
+
+- 1 gestora (Carla Mendes) com 3 estagiarios:
+  - Lucas Andrade: ~3 meses de ponto, saldo positivo, um dia com pendencia
+    de almoco e um pedido de ajuste esperando a gestora;
+  - Beatriz Souza: dias curtos, saldo abaixo do limite de alerta (-5h);
+  - Rafael Lima: dias de 7h nos ultimos dias, acima do limite legal de 6h;
+- os feriados nacionais do periodo;
+- um pedido aprovado e um rejeitado, para a auditoria ter historico.
+
+Os dias sao contados a partir de hoje (as ultimas semanas uteis), entao a
+demonstracao sempre parece recente, nao importa quando o script rodar.
 
 Rodar uma vez, na raiz do projeto, com a API parada ou rodando:
     python popular_demo.py
@@ -15,7 +24,7 @@ Usa o SQLAlchemy direto (sessao, add_all, commit), sem passar pela API -
 e um script de carga, nao uma tela do sistema.
 """
 
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 from banco.conexao import SessionLocal, criar_tabelas
 from modelos import (
@@ -27,26 +36,47 @@ from modelos import (
     SolicitacaoAjuste,
 )
 
-# Horario de saida de cada dia, em sequencia. Entrada 09:00 e almoco
-# 12:00-13:00 em todos: saida 16:00 da as 6h da meta, os outros dao
-# credito ou debito - assim o saldo e o grafico nao ficam uma linha reta.
-SAIDAS = [
+# Feriados nacionais de 2026 que podem cair dentro do periodo da demonstracao.
+FERIADOS_2026 = {
+    date(2026, 4, 21): "Tiradentes",
+    date(2026, 5, 1): "Dia do Trabalho",
+    date(2026, 6, 4): "Corpus Christi",
+    date(2026, 9, 7): "Independencia do Brasil",
+    date(2026, 10, 12): "Nossa Senhora Aparecida",
+    date(2026, 11, 2): "Finados",
+    date(2026, 11, 15): "Proclamacao da Republica",
+    date(2026, 11, 20): "Dia da Consciencia Negra",
+    date(2026, 12, 25): "Natal",
+}
+
+# Horario de saida de cada dia, em sequencia (entrada 09:00, almoco 12h-13h).
+# Saida 16:00 da as 6h da meta; os outros dao credito ou debito - assim o
+# saldo e os graficos nao ficam uma linha reta. A lista se repete.
+SAIDAS_LUCAS = [
     time(16, 0), time(16, 30), time(15, 30), time(16, 0), time(17, 0),
-    time(16, 0), time(15, 0), time(16, 0), time(16, 20), time(16, 0),
-    time(15, 40), time(16, 0), time(16, 0), time(16, 30), time(16, 0),
+    time(16, 0), time(15, 40), time(16, 20), time(16, 0), time(16, 30),
+    time(15, 0), time(16, 10), time(16, 0), time(16, 40), time(15, 50),
 ]
+SAIDAS_BEATRIZ = [time(15, 30), time(16, 0), time(15, 0), time(15, 40), time(15, 50)]
 
 
 def ultimos_dias_uteis(quantidade: int) -> list[date]:
-    """Os N dias de semana (seg a sex) anteriores a hoje, do mais antigo ao mais novo."""
+    """Os N dias de semana anteriores a hoje (sem feriado), do mais antigo ao mais novo."""
     dias = []
     dia = date.today() - timedelta(days=1)
     while len(dias) < quantidade:
-        if dia.weekday() < 5:
+        if dia.weekday() < 5 and dia not in FERIADOS_2026:
             dias.append(dia)
         dia = dia - timedelta(days=1)
     dias.reverse()
     return dias
+
+
+def dia_completo(estagiario, dia, saida, entrada=time(9, 0)):
+    return RegistroPonto(
+        estagiario=estagiario, data=dia, entrada=entrada,
+        saida_almoco=time(12, 0), retorno_almoco=time(13, 0), saida=saida,
+    )
 
 
 def main() -> None:
@@ -58,29 +88,25 @@ def main() -> None:
         session.close()
         return
 
-    gestor = Gestor(nome="Carla Mendes")
-    lucas = Estagiario(nome="Lucas Andrade", gestor=gestor)
-    lucas.configuracao = Configuracao(meta_horas_diaria=6.0, meta_horas_semanal=30.0)
-    beatriz = Estagiario(nome="Beatriz Souza", gestor=gestor)
-    beatriz.configuracao = Configuracao(meta_horas_diaria=6.0, meta_horas_semanal=30.0)
-    session.add_all([gestor, lucas, beatriz])
+    carla = Gestor(nome="Carla Mendes")
+    lucas = Estagiario(nome="Lucas Andrade", gestor=carla)
+    beatriz = Estagiario(nome="Beatriz Souza", gestor=carla)
+    rafael = Estagiario(nome="Rafael Lima", gestor=carla)
+    for pessoa in (lucas, beatriz, rafael):
+        pessoa.configuracao = Configuracao(meta_horas_diaria=6.0, meta_horas_semanal=30.0)
+    session.add_all([carla, lucas, beatriz, rafael])
 
-    dias = ultimos_dias_uteis(len(SAIDAS) + 1)
+    dias_lucas = ultimos_dias_uteis(60)
+    inicio = dias_lucas[0]
+    for dia, nome in FERIADOS_2026.items():
+        if inicio <= dia < date.today():
+            session.add(Feriado(data=dia, descricao=nome))
 
-    # Um dos dias vira feriado, para o relatorio nao conta-lo como falta.
-    session.add(Feriado(data=dias[5], descricao="Feriado de demonstracao"))
-
-    for dia, saida in zip(dias[:-1], SAIDAS):
-        if dia == dias[5]:
-            continue
-        session.add(RegistroPonto(
-            estagiario=lucas, data=dia, entrada=time(9, 0),
-            saida_almoco=time(12, 0), retorno_almoco=time(13, 0), saida=saida,
-        ))
-
-    # Ultimo dia: esqueceu o retorno do almoco (pendencia) e pediu ajuste.
+    # Lucas: ~3 meses. O ultimo dia fica com pendencia (esqueceu o retorno).
+    for indice, dia in enumerate(dias_lucas[:-1]):
+        session.add(dia_completo(lucas, dia, SAIDAS_LUCAS[indice % len(SAIDAS_LUCAS)]))
     dia_pendente = RegistroPonto(
-        estagiario=lucas, data=dias[-1], entrada=time(8, 30),
+        estagiario=lucas, data=dias_lucas[-1], entrada=time(8, 30),
         saida_almoco=time(12, 0), retorno_almoco=None, saida=time(16, 30),
     )
     session.add(dia_pendente)
@@ -88,6 +114,37 @@ def main() -> None:
         registro=dia_pendente, estagiario=lucas,
         campo_alterado="retorno_almoco", horario_sugerido=time(13, 0),
         justificativa="Esqueci de bater o retorno do almoco.",
+    ))
+
+    # Beatriz: um mes de dias curtos - o saldo cai abaixo do alerta de -5h.
+    for indice, dia in enumerate(ultimos_dias_uteis(18)):
+        session.add(dia_completo(beatriz, dia, SAIDAS_BEATRIZ[indice % len(SAIDAS_BEATRIZ)]))
+
+    # Rafael: dois meses normais e os ultimos 5 dias com 7h (acima das 6h/dia).
+    dias_rafael = ultimos_dias_uteis(40)
+    for dia in dias_rafael[:-5]:
+        session.add(dia_completo(rafael, dia, time(16, 0)))
+    ajustado = None
+    for dia in dias_rafael[-5:]:
+        registro = dia_completo(rafael, dia, time(17, 0), entrada=time(9, 0))
+        session.add(registro)
+        ajustado = ajustado or registro
+
+    # Historico para a auditoria: um pedido aprovado e um rejeitado.
+    session.flush()
+    resposta = datetime.combine(dias_rafael[-3], time(10, 0))
+    session.add(SolicitacaoAjuste(
+        registro=ajustado, estagiario=rafael, campo_alterado="entrada",
+        horario_sugerido=time(9, 0), justificativa="O leitor de cracha estava fora do ar.",
+        status="aprovado", data_solicitacao=resposta - timedelta(hours=20),
+        data_resposta=resposta, gestor=carla,
+    ))
+    registro_beatriz = session.query(RegistroPonto).filter_by(estagiario=beatriz).first()
+    session.add(SolicitacaoAjuste(
+        registro=registro_beatriz, estagiario=beatriz, campo_alterado="saida",
+        horario_sugerido=time(16, 0), justificativa="Fiquei ate mais tarde na reuniao.",
+        status="rejeitado", data_solicitacao=resposta - timedelta(days=9),
+        data_resposta=resposta - timedelta(days=8), gestor=carla,
     ))
 
     try:
@@ -99,8 +156,9 @@ def main() -> None:
         session.close()
 
     print("Dados de demonstracao criados:")
-    print("  gestor: Carla Mendes")
-    print("  estagiarios: Lucas Andrade (com ponto) e Beatriz Souza (sem ponto)")
+    print("  gestora: Carla Mendes")
+    print("  estagiarios: Lucas Andrade (saldo positivo, 1 pendencia),")
+    print("               Beatriz Souza (em alerta) e Rafael Lima (acima do limite legal)")
     print("  1 pedido de ajuste pendente na fila da Carla")
 
 

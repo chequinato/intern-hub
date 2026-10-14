@@ -8,14 +8,29 @@ import calendar
 from banco.conexao import get_session
 from modelos.configuracao import META_HORAS_DIARIA_PADRAO, Configuracao
 from modelos.registro_ponto import RegistroPonto
-from api.schemas import RelatorioMensalResponse
-from servicos.saldo import calcular_saldo_acumulado
+from api.schemas import RelatorioMensalResponse, TendenciaMes
+from servicos.saldo import calcular_saldo_acumulado, saldo_por_mes
 from servicos.vencimento import verificar_vencimento
 from servicos.calculo import calcular_horas_trabalhadas
 from servicos.feriados import eh_dia_util
 from servicos.exportar_relatorio import gerar_relatorio_excel, gerar_relatorio_pdf
 
 router = APIRouter(prefix="/relatorio", tags=["Relatório"])
+
+@router.get(
+    "/{estagiario_id}/tendencia",
+    response_model=list[TendenciaMes],
+    summary="Saldo mes a mes (tendencia do semestre, funcionalidade 19)",
+)
+def obter_tendencia(estagiario_id: int, session: Session = Depends(get_session)) -> list[dict]:
+    """Acrescentada na Entrega 3 (Miguel). A conta, com group_by() no banco,
+    mora em servicos/saldo.py (saldo_por_mes).
+
+    Declarada antes de /{estagiario_id} por clareza - as duas nao conflitam,
+    porque esta tem um pedaco a mais no caminho.
+    """
+    return saldo_por_mes(estagiario_id, session)
+
 
 @router.get("/{estagiario_id}", response_model=RelatorioMensalResponse)
 def obter_relatorio(estagiario_id: int, mes: int, ano: int, session: Session = Depends(get_session)):

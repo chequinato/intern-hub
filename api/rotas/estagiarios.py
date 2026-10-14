@@ -18,6 +18,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from api.schemas import (
+    ConfiguracaoResponse,
+    ConfiguracaoUpdate,
     EstagiarioCreate,
     EstagiarioGestorUpdate,
     EstagiarioResponse,
@@ -145,3 +147,49 @@ def vincular_gestor(
 
     session.refresh(estagiario)
     return estagiario
+
+
+@router.patch(
+    "/{estagiario_id}/configuracao",
+    response_model=ConfiguracaoResponse,
+    summary="Altera a meta de horas e os limites do estagiario",
+)
+def alterar_configuracao(
+    estagiario_id: int,
+    dados: ConfiguracaoUpdate,
+    session: Session = Depends(get_session),
+) -> Configuracao:
+    """Acrescentada na Entrega 3 (Miguel).
+
+    Ate aqui a meta so era definida no cadastro. So os campos enviados no
+    payload mudam (exclude_unset): mandar so a meta diaria nao zera os
+    limites. Mudar a meta muda o saldo na hora, porque ele nao fica gravado -
+    e somado de novo a cada consulta (servicos/saldo.py).
+    """
+    estagiario = session.query(Estagiario).filter_by(id=estagiario_id).first()
+    if estagiario is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Estagiario {estagiario_id} nao encontrado.",
+        )
+
+    configuracao = estagiario.configuracao
+    if configuracao is None:
+        configuracao = Configuracao()
+        estagiario.configuracao = configuracao
+
+    for campo, valor in dados.model_dump(exclude_unset=True).items():
+        if valor is not None:
+            setattr(configuracao, campo, valor)
+
+    try:
+        session.commit()
+    except SQLAlchemyError as erro:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Nao foi possivel salvar a configuracao.",
+        ) from erro
+
+    session.refresh(configuracao)
+    return configuracao

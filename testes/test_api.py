@@ -6,55 +6,17 @@ servico e banco.
 
 Nao usam banco/dados.db: cada teste ganha um banco SQLite novo em memoria,
 trocando a dependencia get_session da API por uma que abre sessao nesse
-banco (app.dependency_overrides). Assim os testes nao apagam nem sujam os
+banco (app.dependency_overrides) - o fixture `cliente` mora em
+testes/conftest.py e e compartilhado com testes/test_entrega3.py. Assim os testes nao apagam nem sujam os
 dados de quem esta rodando o sistema.
 
 Rodar com:
     pytest testes/test_api.py -v
 """
 
-from datetime import date
-
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
-import modelos  # noqa: F401 - registra as tabelas em Base.metadata
 import api.seguranca as seguranca
 from api.app_api import app
 from api.seguranca import verificar_token
-from banco.conexao import Base, get_session
-
-
-@pytest.fixture
-def cliente():
-    """Cliente HTTP falando com a API em cima de um banco em memoria."""
-    # StaticPool: o banco em memoria vive dentro de UMA conexao. Sem isso,
-    # cada sessao abriria uma conexao nova e veria um banco vazio.
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(bind=engine)
-    SessaoDeTeste = sessionmaker(bind=engine, expire_on_commit=False)
-
-    def sessao_de_teste():
-        session = SessaoDeTeste()
-        try:
-            yield session
-        finally:
-            session.close()
-
-    app.dependency_overrides[get_session] = sessao_de_teste
-    # O token e testado a parte (test_rota_protegida_sem_token_devolve_401):
-    # aqui ele fica desligado para os testes passarem com ou sem API_TOKEN
-    # no .env de quem roda.
-    app.dependency_overrides[verificar_token] = lambda: None
-    yield TestClient(app)
-    app.dependency_overrides.clear()
 
 
 def _criar_estagiario_com_gestor(cliente):

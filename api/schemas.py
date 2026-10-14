@@ -348,3 +348,142 @@ class AssistentePerguntaResponse(BaseModel):
     """Resposta do assistente, ja em linguagem natural."""
 
     resposta: str
+
+
+# --- Entrega 3: ponto rapido, configuracao e paineis ---------------------------
+# Parte do Miguel (Entrega 3). Mesmo padrao: *Request/*Update na entrada,
+# *Response na saida.
+
+
+class ConfiguracaoUpdate(BaseModel):
+    """Payload de PATCH /estagiarios/{id}/configuracao.
+
+    Todos os campos sao opcionais: so muda o que vier no payload. As mesmas
+    faixas de ConfiguracaoCreate valem aqui (meta positiva, alerta <= 0...).
+    """
+
+    meta_horas_diaria: float | None = Field(default=None, gt=0, le=24)
+    meta_horas_semanal: float | None = Field(default=None, gt=0, le=168)
+    limite_alerta_negativo: float | None = Field(default=None, le=0)
+    prazo_vencimento_meses: int | None = Field(default=None, ge=1)
+    limite_maximo_diario: float | None = Field(default=None, gt=0, le=24)
+    limite_maximo_semanal: float | None = Field(default=None, gt=0, le=168)
+
+
+class PontoRequest(BaseModel):
+    """Payload (opcional) de POST /ponto/{estagiario_id}.
+
+    Sem marcacao, vale a proxima da ordem (entrada, saida para o almoco,
+    retorno, saida). Com marcacao="saida", da para fechar o dia sem almoco.
+    """
+
+    marcacao: str | None = None
+
+    @field_validator("marcacao")
+    @classmethod
+    def _marcacao_conhecida(cls, valor: str | None) -> str | None:
+        if valor is not None and valor not in CAMPOS_AJUSTAVEIS:
+            raise ValueError(
+                f"marcacao precisa ser uma entre: {', '.join(CAMPOS_AJUSTAVEIS)}"
+            )
+        return valor
+
+
+class PontoResponse(BaseModel):
+    """O registro do dia depois da marcacao, e qual horario foi marcado."""
+
+    campo_marcado: str
+    proxima_marcacao: str | None = None
+    registro: RegistroResponse
+
+
+class RegistroHoje(BaseModel):
+    """Os horarios do dia de hoje, para o painel saber o que ja foi marcado."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    entrada: time
+    saida: time | None = None
+    saida_almoco: time | None = None
+    retorno_almoco: time | None = None
+
+
+class Pendencia(BaseModel):
+    """Um dia fechado com o almoco incompleto."""
+
+    registro_id: int
+    data: date
+    campos_faltando: List[str]
+    pedido_aberto: bool
+
+
+class DiaResumo(BaseModel):
+    data: date
+    horas_trabalhadas: float
+    completo: bool
+
+
+class TendenciaMes(BaseModel):
+    """Uma linha da tendencia: o mes, as horas e o saldo acumulado ate ele."""
+
+    ano: int
+    mes: int
+    horas_trabalhadas: float
+    dias_completos: int
+    saldo_mes: float
+    saldo_acumulado: float
+
+
+class PainelEstagiarioResponse(BaseModel):
+    """Tudo o que o painel inicial do estagiario mostra."""
+
+    estagiario_id: int
+    nome: str
+    hoje: date
+    meta_horas_diaria: float
+    meta_horas_semanal: float
+    limite_alerta: float
+    limite_maximo_diario: float
+    limite_maximo_semanal: float
+    saldo_acumulado: float
+    em_alerta: bool
+    horas_semana: float
+    horas_hoje: float
+    registro_hoje: RegistroHoje | None = None
+    proxima_marcacao: str | None = None
+    pendencias: List[Pendencia]
+    pedidos_pendentes: int
+    aviso_vencimento: str | None = None
+    ultimos_dias: List[DiaResumo]
+    tendencia: List[TendenciaMes]
+
+
+class LinhaEquipe(BaseModel):
+    estagiario_id: int
+    nome: str
+    saldo_acumulado: float
+    em_alerta: bool
+    limite_alerta: float
+    horas_semana: float
+    limite_maximo_semanal: float
+    meta_horas_semanal: float
+    acima_limite_semanal: bool
+    dias_acima_limite_diario: int
+    pendencias: int
+    pedidos_pendentes: int
+    ultimo_ponto: date | None = None
+
+
+class PainelGestorResponse(BaseModel):
+    """Visao da equipe de um gestor."""
+
+    gestor_id: int
+    hoje: date
+    total_estagiarios: int
+    em_alerta: int
+    acima_limite_semanal: int
+    acima_limite_legal: int
+    pedidos_na_fila: int
+    saldo_medio: float
+    equipe: List[LinhaEquipe]

@@ -29,12 +29,14 @@ relatorio.py) - risco residual baixo.
 
 import os
 import re
+from datetime import date
 
 from openai import OpenAI
 from sqlalchemy.orm import Session
 
 from modelos import Estagiario
 from modelos.configuracao import LIMITE_ALERTA_NEGATIVO_PADRAO
+from servicos.painel import resumo_estagiario
 from servicos.saldo import calcular_saldo_acumulado, verificar_alerta
 from servicos.simulador import simular_cenario
 
@@ -105,10 +107,47 @@ def _montar_contexto(pergunta: str, estagiario_id: int, session: Session) -> str
             f"Meta semanal: {estagiario.configuracao.meta_horas_semanal:.1f}h\n"
         )
 
+    contexto += _contexto_do_painel(estagiario, session)
+
     if _pergunta_pede_simulacao(pergunta):
         contexto += _contexto_simulacao(pergunta, estagiario_id, session)
 
     return contexto
+
+
+def _contexto_do_painel(estagiario: Estagiario, session: Session) -> str:
+    """Semana, pendencias, pedidos e meses anteriores (Entrega 3, Miguel).
+
+    Reaproveita o mesmo resumo do painel inicial (servicos/painel.py), entao
+    o assistente responde com exatamente os numeros que a tela mostra - e
+    passa a dar conta de perguntas como "tenho alguma pendencia?" ou "como
+    foi meu mes passado?", que antes ficavam sem dado nenhum.
+    """
+    resumo = resumo_estagiario(estagiario, date.today(), session)
+
+    texto = (
+        f"- Horas nesta semana: {resumo['horas_semana']:.2f}h "
+        f"(limite legal: {resumo['limite_maximo_semanal']:.0f}h por semana, "
+        f"{resumo['limite_maximo_diario']:.0f}h por dia)\n"
+        f"- Pedidos de ajuste esperando o gestor: {resumo['pedidos_pendentes']}\n"
+    )
+
+    if resumo["pendencias"]:
+        dias = ", ".join(p["data"].strftime("%d/%m") for p in resumo["pendencias"])
+        texto += f"- Dias com pendência de almoço (fora do saldo até corrigir): {dias}\n"
+    else:
+        texto += "- Nenhum dia com pendência de almoço\n"
+
+    if resumo["aviso_vencimento"]:
+        texto += f"- Aviso de vencimento: {resumo['aviso_vencimento']}\n"
+
+    for mes in resumo["tendencia"][-3:]:
+        texto += (
+            f"- Mês {mes['mes']:02d}/{mes['ano']}: {mes['horas_trabalhadas']:.1f}h "
+            f"em {mes['dias_completos']} dia(s) completos, saldo do mês "
+            f"{mes['saldo_mes']:+.2f}h\n"
+        )
+    return texto
 
 
 def _contexto_simulacao(pergunta: str, estagiario_id: int, session: Session) -> str:

@@ -64,3 +64,31 @@ def cadastrar_feriado(
 def listar_feriados(session: Session = Depends(get_session)) -> list[Feriado]:
     """Ordem cronologica - e assim que a tela e o relatorio esperam a lista."""
     return session.query(Feriado).order_by(Feriado.data).all()
+
+
+@router.delete(
+    "/{feriado_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove um dia nao util",
+)
+def remover_feriado(feriado_id: int, session: Session = Depends(get_session)) -> None:
+    """Acrescentada na Entrega 3 (Miguel), para a tela de feriados do gestor.
+
+    Remover um feriado faz aquele dia voltar a contar como dia util - o
+    relatorio passa a cobrar ponto nele na proxima consulta.
+    """
+    feriado = session.query(Feriado).filter_by(id=feriado_id).first()
+    if feriado is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Feriado {feriado_id} nao encontrado.",
+        )
+    session.delete(feriado)
+    try:
+        session.commit()
+    except SQLAlchemyError as erro:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Nao foi possivel remover o feriado.",
+        ) from erro

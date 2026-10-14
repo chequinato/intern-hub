@@ -9,7 +9,8 @@ servico. Em vez de carregar todos os registros para a memoria e somar na mao
 ORM nos poupa), pedimos ao banco a soma pronta com func.sum().
 
 Recursos do SQLAlchemy usados aqui: func.sum, func.count, func.cast,
-func.strftime, case, query().filter().
+func.strftime, case, query().filter(), group_by() (tendencia mes a mes,
+acrescentada na Entrega 3).
 """
 
 from sqlalchemy import Integer, case, func
@@ -52,6 +53,39 @@ def _segundos_do_horario(coluna):
     )
 
 
+def _trabalhado_segundos():
+    """Expressao SQL: segundos trabalhados em um dia, ja sem o almoco.
+
+    trabalhado = (saida - entrada) - max(almoco_real, 1h). Fica numa funcao
+    propria porque duas consultas usam exatamente a mesma conta: o saldo
+    acumulado e a tendencia mes a mes (saldo_por_mes, logo abaixo).
+    """
+    bruto_segundos = _segundos_do_horario(RegistroPonto.saida) - _segundos_do_horario(
+        RegistroPonto.entrada
+    )
+    almoco_real_segundos = _segundos_do_horario(
+        RegistroPonto.retorno_almoco
+    ) - _segundos_do_horario(RegistroPonto.saida_almoco)
+
+    # Respeita o intervalo minimo de almoco (1h) tambem na consulta, para bater
+    # exatamente com o que calculo.py faz em Python.
+    almoco_efetivo = case(
+        (almoco_real_segundos > ALMOCO_MINIMO_SEGUNDOS, almoco_real_segundos),
+        else_=ALMOCO_MINIMO_SEGUNDOS,
+    )
+    return bruto_segundos - almoco_efetivo
+
+
+def _filtro_dias_completos(estagiario_id: int) -> tuple:
+    """Condicoes do filter(): so dias do estagiario com os quatro horarios."""
+    return (
+        RegistroPonto.estagiario_id == estagiario_id,
+        RegistroPonto.saida.is_not(None),
+        RegistroPonto.saida_almoco.is_not(None),
+        RegistroPonto.retorno_almoco.is_not(None),
+    )
+
+
 def calcular_saldo_acumulado(estagiario_id: int, session: Session) -> float:
     """Saldo total (banco de horas) do estagiario, somado no proprio banco.
 
@@ -67,32 +101,12 @@ def calcular_saldo_acumulado(estagiario_id: int, session: Session) -> float:
     """
     meta_diaria = _meta_diaria(estagiario_id, session)
 
-    bruto_segundos = _segundos_do_horario(RegistroPonto.saida) - _segundos_do_horario(
-        RegistroPonto.entrada
-    )
-    almoco_real_segundos = _segundos_do_horario(
-        RegistroPonto.retorno_almoco
-    ) - _segundos_do_horario(RegistroPonto.saida_almoco)
-
-    # Respeita o intervalo minimo de almoco (1h) tambem na consulta, para bater
-    # exatamente com o que calculo.py faz em Python.
-    almoco_efetivo = case(
-        (almoco_real_segundos > ALMOCO_MINIMO_SEGUNDOS, almoco_real_segundos),
-        else_=ALMOCO_MINIMO_SEGUNDOS,
-    )
-    trabalhado_segundos = bruto_segundos - almoco_efetivo
-
     total_segundos, dias_completos = (
         session.query(
-            func.sum(trabalhado_segundos),
+            func.sum(_trabalhado_segundos()),
             func.count(RegistroPonto.id),
         )
-        .filter(
-            RegistroPonto.estagiario_id == estagiario_id,
-            RegistroPonto.saida.is_not(None),
-            RegistroPonto.saida_almoco.is_not(None),
-            RegistroPonto.retorno_almoco.is_not(None),
-        )
+        .filter(*_filtro_dias_completos(estagiario_id))
         .one()
     )
 
@@ -113,6 +127,51 @@ def verificar_alerta(
     -5h ou pior (ex: -5.0, -6.3). Um saldo de -4.9 ainda nao alerta.
     """
     return saldo_acumulado <= limite
+
+
+def saldo_por_mes(estagiario_id: int, session: Session) -> list[dict]:
+    """Tendencia do banco de horas: horas e saldo de cada mes, em ordem.
+
+    Funcionalidade 19 do refinamento ("tendencia do semestre"). Mesma conta
+    do saldo acumulado, so que o banco agrupa por mes com group_by() em vez
+    de somar tudo de uma vez: func.strftime("%Y-%m") transforma a data em
+    "2026-09", e cada grupo devolve as horas e os dias completos daquele mes.
+
+    O saldo_acumulado de cada linha soma os meses anteriores - e o que o
+    grafico de tendencia desenha. O ultimo valor bate com
+    calcular_saldo_acumulado().
+    """
+    meta_diaria = _meta_diaria(estagiario_id, session)
+    mes = func.strftime("%Y-%m", RegistroPonto.data)
+
+    linhas = (
+        session.query(
+            mes.label("mes"),
+            func.sum(_trabalhado_segundos()),
+            func.count(RegistroPonto.id),
+        )
+        .filter(*_filtro_dias_completos(estagiario_id))
+        .group_by(mes)
+        .order_by(mes)
+        .all()
+    )
+
+    resultado = []
+    acumulado = 0.0
+    for mes_texto, segundos, dias in linhas:
+        horas = (segundos or 0) / 3600
+        saldo_mes = horas - meta_diaria * dias
+        acumulado += saldo_mes
+        ano, numero_mes = mes_texto.split("-")
+        resultado.append({
+            "ano": int(ano),
+            "mes": int(numero_mes),
+            "horas_trabalhadas": round(horas, 2),
+            "dias_completos": dias,
+            "saldo_mes": round(saldo_mes, 2),
+            "saldo_acumulado": round(acumulado, 2),
+        })
+    return resultado
 
 
 def _meta_diaria(estagiario_id: int, session: Session) -> float:
