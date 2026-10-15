@@ -1,7 +1,7 @@
 // Alterna entre o tema claro e o escuro, aplicando o atributo data-tema no
 // <html> - e o que estilos/tema.css usa para trocar as variaveis de cor.
-// Na primeira visita segue a preferencia do sistema operacional; depois
-// guarda a escolha no localStorage (so conveniencia, nada critico).
+// O padrao e o escuro (grafite, a direcao visual escolhida pelo grupo);
+// a escolha fica guardada no localStorage (so conveniencia, nada critico).
 
 import { useEffect, useState } from "react";
 
@@ -12,9 +12,9 @@ function temaInicial() {
     const salvo = localStorage.getItem(CHAVE_STORAGE);
     if (salvo === "escuro" || salvo === "claro") return salvo;
   } catch {
-    // sem storage: cai na preferencia do sistema
+    // sem storage: fica o padrao
   }
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "escuro" : "claro";
+  return "escuro";
 }
 
 export function useTema() {

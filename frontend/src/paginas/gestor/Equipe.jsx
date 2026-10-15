@@ -180,7 +180,7 @@ function GraficoSaldos({ equipe }) {
             ]} />}
           />
           <Bar dataKey="saldo_acumulado" radius={[4, 4, 4, 4]} barSize={22} animationDuration={900}>
-            {dados.map((l) => <Cell key={l.estagiario_id} fill={l.em_alerta ? "var(--alerta)" : l.saldo_acumulado >= 0 ? "var(--marca-500)" : "var(--atencao-forte)"} />)}
+            {dados.map((l) => <Cell key={l.estagiario_id} fill={l.em_alerta ? "var(--alerta)" : l.saldo_acumulado >= 0 ? "var(--grafico-base)" : "var(--atencao-forte)"} />)}
           </Bar>
         </BarChart>
       </ResponsiveContainer>

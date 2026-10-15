@@ -182,9 +182,9 @@ function GraficoDoMes({ evolucao }) {
             />}
           />
           <Bar dataKey="saldo_do_dia" radius={[4, 4, 4, 4]} maxBarSize={18} animationDuration={800}>
-            {dados.map((d) => <Cell key={d.data} fill={d.saldo_do_dia >= 0 ? "var(--marca-400)" : "var(--alerta)"} fillOpacity={0.8} />)}
+            {dados.map((d) => <Cell key={d.data} fill={d.saldo_do_dia >= 0 ? "var(--grafico-base)" : "var(--alerta)"} fillOpacity={0.85} />)}
           </Bar>
-          <Line type="monotone" dataKey="acumulado" stroke="var(--marca-700)" strokeWidth={2.2} dot={false} animationDuration={1200} />
+          <Line type="monotone" dataKey="acumulado" stroke="var(--marca-500)" strokeWidth={2.2} dot={false} animationDuration={1200} />
         </ComposedChart>
       </ResponsiveContainer>
     </div>

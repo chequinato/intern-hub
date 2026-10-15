@@ -35,7 +35,7 @@
 .perfil-lateral .nome { color: var(--lateral-texto-forte); font-weight: 600; font-size: 13.5px; line-height: 1.25; }
 .perfil-lateral .papel { font-size: 12px; color: var(--lateral-texto); }
 
-.nav-grupo { font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .08em; color: #6F9693; padding: 14px 10px 6px; }
+.nav-grupo { font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .08em; color: #6B7178; padding: 14px 10px 6px; }
 .nav { display: flex; flex-direction: column; gap: 2px; }
 .nav a {
   display: flex; align-items: center; gap: 11px;
@@ -62,8 +62,8 @@
 }
 .lateral-rodape button svg { width: 18px; height: 18px; }
 .lateral-rodape button:hover { background: var(--lateral-2); color: var(--lateral-texto-forte); }
-.status-api { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 8px 10px 2px; color: #6F9693; }
-.status-api i { width: 7px; height: 7px; border-radius: 50%; background: var(--marca-400); }
+.status-api { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 8px 10px 2px; color: #6B7178; }
+.status-api i { width: 7px; height: 7px; border-radius: 50%; background: #4ADE80; }
 .status-api.fora i { background: #F87171; }
 
 /* -- Area principal -------------------------------------------------------- */

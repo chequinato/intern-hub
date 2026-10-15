@@ -64,8 +64,9 @@ npm run dev
 ```
 
 Abre em `http://localhost:5173`. Na tela inicial, escolha "Sou estagiário"
-(ex: Lucas Andrade) ou "Sou gestor" (ex: Carla Mendes). As fontes (Geist) e
-os ícones (lucide-react) vêm pelo `npm install`, sem depender de internet
+(ex: Lucas Andrade) ou "Sou gestor" (ex: Carla Mendes). A fonte é a SF Pro
+em Mac e iPhone e a Inter (a mais parecida com ela) no Windows; a Inter e os
+ícones (lucide-react) vêm pelo `npm install`, sem depender de internet
 depois disso.
 
 Se preencher `API_TOKEN` no `.env` da raiz, coloque o mesmo valor em
@@ -143,8 +144,10 @@ aviso de limite legal do estágio (Lei 11.788/2008 — 6h/dia, 30h/semana),
 vencimento do crédito antigo, autenticação por token e limite de
 requisições na API.
 
-**Interface**: tema claro e escuro, layout para celular, telas carregadas
-sob demanda e textos em português com datas no formato dd/mm/aaaa.
+**Interface**: grafite com destaque laranja (tema escuro por padrão, claro
+no botão da barra lateral), tela de entrada com uma vitrine animada do
+painel, layout para celular, telas carregadas sob demanda e textos em
+português com datas no formato dd/mm/aaaa.
 
 A primeira interface foi feita em Streamlit e foi substituída pelo
 frontend em React (o código antigo continua no histórico do Git).

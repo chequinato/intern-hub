@@ -1,13 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Briefcase, ChevronRight, CircleAlert, GraduationCap, LoaderCircle, Moon, Search, Sun, UserPlus, X,
-} from "lucide-react";
+import { Briefcase, ChevronRight, CircleAlert, GraduationCap, LoaderCircle, Search, UserPlus, X } from "lucide-react";
 import { api } from "../api/cliente";
 import { useApiState } from "../useApiState";
 import { useSessao } from "../context/SessaoContext";
-import { useTema } from "../useTema";
 import { Logo } from "../components/Logo";
+import { VitrinePainel } from "../components/VitrinePainel";
 import { useNotificar } from "../components/Notificacoes";
 import { Avatar, Esqueleto, Vazio } from "../components/Ui";
 
@@ -20,7 +18,6 @@ export function Portal() {
   const [busca, setBusca] = useState("");
   const navegar = useNavigate();
   const { escolherEstagiario, escolherGestor } = useSessao();
-  const { escuro, alternar } = useTema();
 
   const estagiarios = useApiState(() => api.get("/estagiarios"));
   const gestores = useApiState(() => api.get("/gestores"));
@@ -47,51 +44,15 @@ export function Portal() {
 
   return (
     <div className="portal">
-      <aside className="portal-marca">
-        <div className="marca" style={{ padding: 0 }}>
-          <Logo tamanho={38} />
-          <div className="marca-nome" style={{ fontSize: 19 }}>InternHub<span>Banco de horas do estágio</span></div>
-        </div>
-
-        <div className="portal-chamada">
-          <h1>Quanto você deve, ou tem de crédito, no estágio.</h1>
-          <p>
-            O estagiário marca o ponto e o sistema faz a conta contra a meta contratada:
-            desconta o almoço, avisa quando passa do limite da lei e guarda cada ajuste
-            aprovado pelo gestor.
-          </p>
-        </div>
-
-        <figure className="exemplo-dia">
-          <figcaption>Como um dia entra no saldo</figcaption>
-          <ol className="exemplo-linha">
-            <li><span className="mono">09:00</span>entrada</li>
-            <li className="exemplo-almoco"><span className="mono">12:00 – 13:00</span>almoço</li>
-            <li><span className="mono">16:30</span>saída</li>
-          </ol>
-          <dl className="exemplo-conta">
-            <div><dt>Expediente</dt><dd className="mono">7h30</dd></div>
-            <div><dt>Almoço (mínimo de 1h)</dt><dd className="mono">− 1h</dd></div>
-            <div><dt>Trabalhado</dt><dd className="mono">6h30</dd></div>
-            <div><dt>Meta do dia</dt><dd className="mono">− 6h</dd></div>
-            <div className="exemplo-total"><dt>Vai para o banco de horas</dt><dd className="mono">+0h30</dd></div>
-          </dl>
-          <p className="exemplo-nota">
-            Passou de 6h no dia ou de 30h na semana? O ponto é salvo, mas aparece o aviso da Lei 11.788/2008.
-          </p>
-        </figure>
-
-        <div className="portal-rodape">Projeto de Programação em Python · UniAnchieta 2026/2</div>
-      </aside>
-
       <main className="portal-acesso">
-        <button type="button" className="botao botao--fantasma botao--icone portal-tema" onClick={alternar} aria-label="Alternar tema">
-          {escuro ? <Sun /> : <Moon />}
-        </button>
+        <div className="portal-marca-topo">
+          <Logo tamanho={34} />
+          <span>InternHub<span className="laranja">.</span></span>
+        </div>
 
         <div className="portal-caixa entra">
-          <h2>Entrar</h2>
-          <p className="texto-2" style={{ marginTop: 4, marginBottom: 20 }}>Escolha o seu perfil e o seu nome.</p>
+          <h1>Cada minuto<br />no lugar certo.</h1>
+          <p>Ponto, saldo e ajustes do estágio, com a conta feita pelo sistema. Escolha o seu perfil para entrar.</p>
 
           <div className="segmentado segmentado--bloco" role="tablist">
             <button type="button" className={perfil === "estagiario" ? "ativo" : ""} onClick={() => trocarPerfil("estagiario")}>
@@ -125,7 +86,7 @@ export function Portal() {
           ) : (
             <>
               {(atual.dados || []).length > 4 && (
-                <div className="campo--com-icone" style={{ marginTop: 18 }}>
+                <div className="campo--com-icone" style={{ marginTop: 16 }}>
                   <Search />
                   <input className="entrada" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar pelo nome" aria-label="Buscar pelo nome" />
                 </div>
@@ -133,14 +94,14 @@ export function Portal() {
 
               <div className="lista-pessoas">
                 {atual.carregando && !atual.dados ? (
-                  [0, 1, 2].map((n) => <Esqueleto key={n} altura={58} style={{ borderRadius: 10 }} />)
+                  [0, 1, 2].map((n) => <Esqueleto key={n} altura={58} style={{ borderRadius: 12 }} />)
                 ) : pessoas.length === 0 ? (
                   <Vazio icone={perfil === "estagiario" ? GraduationCap : Briefcase} titulo={busca ? "Ninguém com esse nome" : "Ninguém cadastrado ainda"}>
                     {busca ? "Confira a grafia ou cadastre uma pessoa nova." : "Cadastre a primeira pessoa para começar."}
                   </Vazio>
                 ) : (
                   pessoas.map((p, i) => (
-                    <button key={p.id} type="button" className="pessoa entra" style={{ "--i": i }} onClick={() => entrar(p)}>
+                    <button key={p.id} type="button" className="pessoa entra" style={{ "--i": i + 2 }} onClick={() => entrar(p)}>
                       <Avatar nome={p.nome} tamanho={38} />
                       <span className="pessoa-texto">
                         <b>{p.nome}</b>
@@ -156,15 +117,23 @@ export function Portal() {
                 )}
               </div>
 
-              <button type="button" className="botao botao--bloco" style={{ marginTop: 14 }} onClick={() => setCadastrando(true)}>
+              <button type="button" className="botao botao--primario botao--bloco botao--grande" style={{ marginTop: 14 }} onClick={() => setCadastrando(true)}>
                 <UserPlus />{perfil === "estagiario" ? "Cadastrar estagiário" : "Cadastrar gestor"}
               </button>
             </>
           )}
         </div>
 
-        <p className="portal-nota">Não há senha por pessoa: o acesso à API é protegido por token.</p>
+        <div className="portal-rodape">
+          <span>Programação em Python</span>
+          <span>UniAnchieta 2026/2</span>
+          <span>Lei do Estágio 11.788/2008</span>
+        </div>
       </main>
+
+      <section className="portal-vitrine">
+        <VitrinePainel />
+      </section>
     </div>
   );
 }

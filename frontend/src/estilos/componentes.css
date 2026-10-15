@@ -21,9 +21,8 @@
 .botao:disabled { opacity: .55; cursor: not-allowed; transform: none; }
 .botao svg { width: 16px; height: 16px; flex: none; }
 
-.botao--primario { background: var(--marca-700); border-color: var(--marca-700); color: #fff; }
-.botao--primario:hover { background: var(--marca-800); border-color: var(--marca-800); }
-:root[data-tema="escuro"] .botao--primario { background: var(--marca-600); border-color: var(--marca-600); }
+.botao--primario { background: var(--marca-500); border-color: var(--marca-500); color: var(--sobre-marca); font-weight: 620; }
+.botao--primario:hover { background: var(--marca-400); border-color: var(--marca-400); }
 
 .botao--perigo { color: var(--alerta); border-color: var(--alerta-borda); background: var(--superficie); }
 .botao--perigo:hover { background: var(--alerta-fundo); border-color: var(--alerta); }
@@ -76,18 +75,18 @@
 input[type="range"] {
   -webkit-appearance: none; appearance: none; width: 100%; height: 6px;
   border-radius: 99px; background: var(--superficie-3); outline: none;
-  background-image: linear-gradient(var(--marca-600), var(--marca-600));
+  background-image: linear-gradient(var(--marca-500), var(--marca-500));
   background-size: var(--preenchido, 0%) 100%; background-repeat: no-repeat;
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%;
-  background: var(--superficie); border: 2px solid var(--marca-600); box-shadow: var(--sombra-2);
+  background: var(--superficie); border: 2px solid var(--marca-500); box-shadow: var(--sombra-2);
   cursor: grab; transition: transform var(--t-rapido) var(--curva);
 }
 input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.15); cursor: grabbing; }
 input[type="range"]::-moz-range-thumb {
   width: 18px; height: 18px; border-radius: 50%;
-  background: var(--superficie); border: 2px solid var(--marca-600); cursor: grab;
+  background: var(--superficie); border: 2px solid var(--marca-500); cursor: grab;
 }
 
 /* -- Cartoes ---------------------------------------------------------------- */
@@ -113,14 +112,14 @@ input[type="range"]::-moz-range-thumb {
    Um cartao so, com os numeros separados por divisorias verticais. O item
    em destaque (o numero principal da tela) e maior que os outros. */
 
-.faixa { display: flex; flex-wrap: wrap; }
+.faixa { display: flex; flex-wrap: wrap; overflow: hidden; }
 .faixa-item {
   flex: 1 1 0; min-width: 150px; padding: 18px 22px;
   display: flex; flex-direction: column; gap: 4px;
   border-left: 1px solid var(--borda);
 }
 .faixa-item:first-child { border-left: none; }
-.faixa-item--destaque { flex-grow: 1.5; background: var(--superficie-2); border-radius: var(--raio-lg) 0 0 var(--raio-lg); }
+.faixa-item--destaque { flex-grow: 1.5; background: var(--superficie-2); }
 .indicador-rotulo { font-size: 12.5px; font-weight: 560; color: var(--texto-2); }
 .indicador-valor { font-size: 26px; font-weight: 680; letter-spacing: -.03em; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .faixa-item--destaque .indicador-valor { font-size: 38px; letter-spacing: -.04em; }
@@ -130,7 +129,7 @@ input[type="range"]::-moz-range-thumb {
 @media (max-width: 760px) {
   .faixa-item { flex-basis: 50%; border-left: none; border-top: 1px solid var(--borda); padding: 14px 16px; }
   .faixa-item:nth-child(even) { border-left: 1px solid var(--borda); }
-  .faixa-item--destaque { flex-basis: 100%; border-top: none; border-radius: var(--raio-lg) var(--raio-lg) 0 0; }
+  .faixa-item--destaque { flex-basis: 100%; border-top: none; }
   .faixa-item--destaque + .faixa-item { border-left: none; }
   .faixa-item--destaque ~ .faixa-item:nth-child(odd) { border-left: 1px solid var(--borda); }
   .faixa-item--destaque ~ .faixa-item:nth-child(even) { border-left: none; }
@@ -169,7 +168,7 @@ input[type="range"]::-moz-range-thumb {
 .contador {
   min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px;
   display: inline-grid; place-items: center; font-size: 11.5px; font-weight: 650;
-  background: var(--atencao-forte); color: #3A2400;
+  background: var(--marca-500); color: var(--sobre-marca);
 }
 
 /* -- Avatar ------------------------------------------------------------------- */

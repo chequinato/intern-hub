@@ -38,9 +38,9 @@ export function GraficoTendencia({ tendencia }) {
             />}
           />
           <Bar dataKey="saldo_mes" radius={[5, 5, 5, 5]} maxBarSize={34} animationDuration={900}>
-            {dados.map((m) => <Cell key={m.rotulo} fill={m.saldo_mes >= 0 ? "var(--marca-400)" : "var(--alerta)"} fillOpacity={0.75} />)}
+            {dados.map((m) => <Cell key={m.rotulo} fill={m.saldo_mes >= 0 ? "var(--credito)" : "var(--alerta)"} fillOpacity={0.45} />)}
           </Bar>
-          <Line type="monotone" dataKey="saldo_acumulado" stroke="var(--marca-700)" strokeWidth={2.5}
+          <Line type="monotone" dataKey="saldo_acumulado" stroke="var(--marca-500)" strokeWidth={2.5}
             dot={{ r: 4, fill: "var(--superficie)", strokeWidth: 2 }} activeDot={{ r: 6 }} animationDuration={1200} />
         </ComposedChart>
       </ResponsiveContainer>
@@ -53,7 +53,7 @@ export function GraficoUltimosDias({ dias, meta, limite }) {
     return <Vazio icone={CalendarRange} titulo="Nenhum ponto ainda">Bata o primeiro ponto para ver seus dias aqui.</Vazio>;
   }
   const dados = dias.map((d) => ({ ...d, rotulo: formatarDataCurta(d.data), semana: diaDaSemana(d.data) }));
-  const cor = (d) => (!d.completo ? "var(--borda-forte)" : d.horas_trabalhadas > limite ? "var(--atencao-forte)" : "var(--marca-500)");
+  const cor = (d) => (!d.completo ? "var(--grafico-vazio)" : d.horas_trabalhadas > limite ? "var(--marca-500)" : "var(--grafico-base)");
   return (
     <div style={{ height: 250 }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -61,7 +61,7 @@ export function GraficoUltimosDias({ dias, meta, limite }) {
           <CartesianGrid stroke="var(--borda)" vertical={false} />
           <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tick={{ fill: "var(--texto-3)", fontSize: 11 }} interval="preserveStartEnd" minTickGap={6} />
           <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--texto-3)", fontSize: 12 }} domain={[0, (max) => Math.max(8, Math.ceil(max))]} />
-          <ReferenceLine y={meta} stroke="var(--marca-700)" strokeDasharray="4 4" />
+          <ReferenceLine y={meta} stroke="var(--marca-500)" strokeDasharray="4 4" />
           <Tooltip
             cursor={{ fill: "var(--superficie-3)" }}
             content={<DicaGrafico
@@ -78,9 +78,9 @@ export function GraficoUltimosDias({ dias, meta, limite }) {
         </BarChart>
       </ResponsiveContainer>
       <div className="legenda-grafico">
-        <span><i style={{ background: "var(--marca-500)" }} />Completo</span>
-        <span><i style={{ background: "var(--atencao-forte)" }} />Acima de {formatarHoras(limite, 0)}</span>
-        <span><i style={{ background: "var(--borda-forte)" }} />Incompleto</span>
+        <span><i style={{ background: "var(--grafico-base)" }} />Completo</span>
+        <span><i style={{ background: "var(--marca-500)" }} />Acima de {formatarHoras(limite, 0)}</span>
+        <span><i style={{ background: "var(--grafico-vazio)" }} />Incompleto</span>
         <span><i className="tracejado" />Meta</span>
       </div>
     </div>

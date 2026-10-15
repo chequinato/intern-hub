@@ -45,9 +45,11 @@ Copie `.env.example` para `.env` e ajuste se precisar:
 - `src/components/` — estrutura da página (barra lateral e superior), cartão
   de bater ponto, gráficos (recharts), notificações e peças pequenas
   (`Ui.jsx`: indicadores, selos, avatares, estados vazios).
-- `src/estilos/` — `tema.css` (cores do tema claro e escuro, fontes,
-  tempos de animação), `base.css`, `componentes.css`, `estrutura.css` e
-  `telas.css`.
+- `src/estilos/` — `tema.css` (paleta grafite e laranja nos temas escuro e
+  claro, fontes, tempos de animação), `base.css`, `componentes.css`,
+  `estrutura.css` e `telas.css`.
+- `src/components/VitrinePainel.jsx` — o painel inclinado e animado da tela
+  de entrada (só ilustração, com números de exemplo).
 - `src/utils/formato.js` — datas, horas ("6,5h", "6h30") e os nomes
   amigáveis dos campos da API.
 

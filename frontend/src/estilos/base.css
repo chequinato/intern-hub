@@ -25,9 +25,12 @@ h1 { font-size: 24px; letter-spacing: -.028em; }
 h2 { font-size: 17px; }
 h3 { font-size: 15px; }
 
-a { color: var(--marca-700); text-decoration: none; }
-a:hover { text-decoration: underline; }
-:root[data-tema="escuro"] a { color: var(--marca-400); }
+/* :where() deixa a regra com peso zero: botoes e itens de menu que sao
+   links (<a>) usam a cor deles, nao a de link. */
+:where(a) { color: var(--marca-700); text-decoration: none; }
+:where(a):hover { text-decoration: underline; }
+:where(:root[data-tema="escuro"]) :where(a) { color: var(--marca-400); }
+.botao, .nav a { text-decoration: none !important; }
 
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; background: none; border: none; }
