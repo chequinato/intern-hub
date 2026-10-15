@@ -1,21 +1,39 @@
-from fastapi import APIRouter, Depends, Query, Response
-from sqlalchemy.orm import Session
-from sqlalchemy import extract, func
+"""Rotas de /relatorio - o resumo do mes, a tendencia e a exportacao.
+
+Modulo dono: Pietro Paruci (Desenvolvedor 3 - secao 3.3).
+Exportacao em PDF/Excel: Arthur Linhares (secao 3.5).
+Tendencia mes a mes: Miguel (Entrega 3).
+
+O relatorio junta o que outros servicos ja calculam (horas do dia em
+servicos/calculo.py, saldo em servicos/saldo.py, vencimento em
+servicos/vencimento.py, dia util em servicos/feriados.py) e acrescenta a
+conta propria dele: as faltas do mes.
+
+Recursos do SQLAlchemy usados aqui: extract("month"/"year") para filtrar o
+mes, func.min() para achar o primeiro ponto do estagiario, filter(),
+filter_by() e order_by().
+"""
+
+import calendar
 from datetime import date
 from typing import Literal
-import calendar
 
+from fastapi import APIRouter, Depends, Query, Response
+from sqlalchemy import extract, func
+from sqlalchemy.orm import Session
+
+from api.schemas import RelatorioMensalResponse, TendenciaMes
 from banco.conexao import get_session
 from modelos.configuracao import META_HORAS_DIARIA_PADRAO, Configuracao
 from modelos.registro_ponto import RegistroPonto
-from api.schemas import RelatorioMensalResponse, TendenciaMes
+from servicos.calculo import calcular_horas_trabalhadas
+from servicos.exportar_relatorio import gerar_relatorio_excel, gerar_relatorio_pdf
+from servicos.feriados import eh_dia_util
 from servicos.saldo import calcular_saldo_acumulado, saldo_por_mes
 from servicos.vencimento import verificar_vencimento
-from servicos.calculo import calcular_horas_trabalhadas
-from servicos.feriados import eh_dia_util
-from servicos.exportar_relatorio import gerar_relatorio_excel, gerar_relatorio_pdf
 
 router = APIRouter(prefix="/relatorio", tags=["Relatório"])
+
 
 @router.get(
     "/{estagiario_id}/tendencia",
@@ -32,15 +50,27 @@ def obter_tendencia(estagiario_id: int, session: Session = Depends(get_session))
     return saldo_por_mes(estagiario_id, session)
 
 
-@router.get("/{estagiario_id}", response_model=RelatorioMensalResponse)
-def obter_relatorio(estagiario_id: int, mes: int, ano: int, session: Session = Depends(get_session)):
-    # 1. Busca todos os registros do mês
-    registros_mes = session.query(RegistroPonto).filter(
-        RegistroPonto.estagiario_id == estagiario_id,
-        extract('month', RegistroPonto.data) == mes,
-        extract('year', RegistroPonto.data) == ano
-    ).order_by(RegistroPonto.data).all()
-    
+@router.get(
+    "/{estagiario_id}",
+    response_model=RelatorioMensalResponse,
+    summary="Resumo do mes: horas, faltas, saldo e evolucao dia a dia",
+)
+def obter_relatorio(
+    estagiario_id: int, mes: int, ano: int, session: Session = Depends(get_session)
+) -> dict:
+    """Monta o relatorio de um mes em quatro passos (comentados abaixo)."""
+    # 1. Os registros de ponto do mes, em ordem de data.
+    registros_mes = (
+        session.query(RegistroPonto)
+        .filter(
+            RegistroPonto.estagiario_id == estagiario_id,
+            extract("month", RegistroPonto.data) == mes,
+            extract("year", RegistroPonto.data) == ano,
+        )
+        .order_by(RegistroPonto.data)
+        .all()
+    )
+
     # A meta diaria vem da configuracao DESTE estagiario. Antes estava fixa em
     # 6.0 no codigo, o que dava saldo diario errado para quem tem outra meta.
     configuracao = (
@@ -52,31 +82,32 @@ def obter_relatorio(estagiario_id: int, mes: int, ano: int, session: Session = D
         else META_HORAS_DIARIA_PADRAO
     )
 
+    # 2. Horas de cada dia e o saldo do dia (horas - meta).
     total_horas = 0.0
     evolucao = []
-    
-    # Cria um conjunto (set) apenas com os dias que o estagiário bateu ponto para busca rápida
-    dias_trabalhados = {reg.data.day for reg in registros_mes}
-    
-    # 2. Processa as horas trabalhadas
-    for reg in registros_mes:
-        horas_dia = calcular_horas_trabalhadas(reg.entrada, reg.saida, reg.saida_almoco, reg.retorno_almoco)
+    for registro in registros_mes:
+        horas_dia = calcular_horas_trabalhadas(
+            registro.entrada, registro.saida, registro.saida_almoco, registro.retorno_almoco
+        )
         total_horas += horas_dia
         evolucao.append({
-            "data": reg.data,
+            "data": registro.data,
             "horas_trabalhadas": horas_dia,
-            "saldo_do_dia": round(horas_dia - meta_diaria, 2)
+            "saldo_do_dia": round(horas_dia - meta_diaria, 2),
         })
-        
-    # 3. LÓGICA DE FALTAS (O coração do seu requisito!)
+
+    # 3. Faltas: dia util (sem fim de semana e sem feriado), ja passado, sem
+    # ponto. Um conjunto (set) com os dias trabalhados deixa a busca rapida.
+    dias_trabalhados = {registro.data.day for registro in registros_mes}
     faltas = 0
     # Entrega 3: alem do total, a lista das datas - o calendario do
     # relatorio pinta cada falta no dia certo, com a mesma regra daqui.
     datas_faltas = []
     hoje = date.today()
     ultimo_dia_mes = calendar.monthrange(ano, mes)[1]
-    
-    # Se estiver olhando o mês atual, não conta falta de dias do futuro. Para meses passados, olha até o dia 30/31.
+
+    # No mes atual, dia que ainda nao chegou nao e falta; nos meses passados,
+    # a conta vai ate o ultimo dia (30 ou 31).
     dia_limite = hoje.day if (ano == hoje.year and mes == hoje.month) else ultimo_dia_mes
 
     # Só conta falta a partir do primeiro ponto que o estagiário bateu na
@@ -93,26 +124,24 @@ def obter_relatorio(estagiario_id: int, mes: int, ano: int, session: Session = D
         data_atual = date(ano, mes, dia)
         if primeiro_registro is None or data_atual < primeiro_registro:
             continue
-
-        # A Mágica: Se é dia útil (sem fim de semana e sem feriado) E a pessoa não bateu ponto...
         if eh_dia_util(data_atual, session) and dia not in dias_trabalhados:
             faltas += 1
             datas_faltas.append(data_atual)
 
-    # 4. Busca avisos e saldo final
+    # 4. Saldo do banco de horas (todo o periodo) e aviso de vencimento.
     saldo_atual = calcular_saldo_acumulado(estagiario_id, session)
     aviso = verificar_vencimento(estagiario_id, session)
-    
+
     return {
         "mes": mes,
         "ano": ano,
         "total_horas_trabalhadas": round(total_horas, 2),
         "dias_uteis_trabalhados": len(registros_mes),
-        "faltas": faltas, # Faltas calculadas perfeitamente!
+        "faltas": faltas,
         "datas_faltas": datas_faltas,
         "saldo_acumulado": saldo_atual,
         "aviso_vencimento": aviso,
-        "evolucao_diaria": evolucao
+        "evolucao_diaria": evolucao,
     }
 
 
