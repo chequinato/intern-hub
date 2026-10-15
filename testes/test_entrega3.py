@@ -211,3 +211,18 @@ def test_provedor_de_ia_vem_do_env(monkeypatch):
     monkeypatch.delenv("IA_CHAVE")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-teste")
     assert configuracao_ia()[:2] == ("openai", "sk-teste")
+
+
+def test_assistente_sem_chave_responde_em_modo_demonstracao(cliente, monkeypatch):
+    """Sem chave de IA, o assistente devolve os numeros do proprio banco
+    (o enunciado pede um modo de demonstracao para quem nao tem a chave)."""
+    for variavel in ("IA_PROVEDOR", "IA_CHAVE", "IA_MODELO", "OPENAI_API_KEY"):
+        monkeypatch.delenv(variavel, raising=False)
+    estagiario = _estagiario(cliente)
+    _dia(cliente, estagiario["id"], "2026-10-12", saida="17:00")  # 7h: +1h
+
+    resposta = cliente.post("/assistente/perguntar", json={
+        "estagiario_id": estagiario["id"], "pergunta": "Qual meu saldo?",
+    }).json()["resposta"]
+    assert resposta.startswith("Modo demonstração")
+    assert "Saldo acumulado de horas: 1.00h" in resposta

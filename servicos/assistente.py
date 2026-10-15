@@ -231,13 +231,32 @@ def configuracao_ia() -> tuple[str, str | None, str | None, str]:
     return provedor, chave, endereco, os.getenv("IA_MODELO") or modelo_padrao
 
 
+def resposta_modo_demonstracao(contexto: str) -> str:
+    """Resposta sem IA, para quando nao ha chave configurada.
+
+    O enunciado pede um "modo de demonstracao" para quem avaliar o sistema
+    sem a chave da API. Em vez de so avisar que falta a chave, o assistente
+    devolve os mesmos numeros que mandaria para a IA - ja buscados no banco
+    pelo _montar_contexto -, so que sem o texto em linguagem natural.
+    """
+    linhas = [
+        linha.strip()
+        for linha in contexto.splitlines()
+        # A primeira linha ("Dados atuais de ...") e as instrucoes para a IA
+        # entre parenteses nao interessam para quem le.
+        if linha.strip() and not linha.startswith("Dados atuais") and not linha.strip().startswith("(")
+    ]
+    return (
+        "Modo demonstração (sem IA configurada). Estes são os seus números agora:\n"
+        + "\n".join(linhas)
+        + "\n\nPara respostas em linguagem natural, coloque IA_CHAVE no .env (veja o .env.example)."
+    )
+
+
 def _perguntar_ia(pergunta: str, contexto: str) -> str:
     provedor, chave, endereco, modelo = configuracao_ia()
     if not chave:
-        return (
-            "O assistente de IA não está configurado neste ambiente "
-            "(falta IA_CHAVE no .env - veja o .env.example)."
-        )
+        return resposta_modo_demonstracao(contexto)
 
     # Cliente instanciado aqui dentro (não no topo do módulo) pra não
     # quebrar o import se a chave ainda não estiver setada - por exemplo,

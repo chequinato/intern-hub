@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Info, MessageCircle, SendHorizontal, ShieldCheck } from "lucide-react";
-import { api } from "../../api/cliente";
+import { acentuar, api } from "../../api/cliente";
 import { Avatar } from "../../components/Ui";
 import { primeiroNome } from "../../utils/formato";
 
@@ -36,9 +36,12 @@ export function Assistente() {
     setPensando(true);
     try {
       const { resposta } = await api.post("/assistente/perguntar", { estagiario_id: estagiarioId, pergunta: conteudo });
-      // Sem chave da OpenAI a API responde com um aviso, nao com erro.
-      const ehAviso = /não está configurado|Não consegui falar/i.test(resposta);
-      setMensagens((m) => [...m, { autor: "assistente", texto: resposta, aviso: ehAviso }]);
+      // Sem chave de IA a API responde em modo demonstracao (so os numeros,
+      // sem IA) ou com um aviso de falha - os dois aparecem como aviso.
+      const ehAviso = /Modo demonstração|não está configurado|Não consegui falar/i.test(resposta);
+      // No modo demonstracao o texto vem dos dados crus da API (sem acento,
+      // decimal com ponto); acentuar() deixa no formato brasileiro.
+      setMensagens((m) => [...m, { autor: "assistente", texto: ehAviso ? acentuar(resposta) : resposta, aviso: ehAviso }]);
     } catch (e) {
       setMensagens((m) => [...m, { autor: "assistente", texto: e.message, aviso: true }]);
     } finally {
