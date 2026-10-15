@@ -46,11 +46,16 @@ from servicos.simulador import simular_cenario
 # endereco e o modelo. Para usar outro, basta trocar IA_PROVEDOR no .env.
 PROVEDORES_IA = {
     # provedor: (endereco da API compativel com a OpenAI, modelo padrao)
-    "groq": ("https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"),
+    # No Groq, os modelos Llama sairam da lista em 2026; o gpt-oss-120b (modelo
+    # aberto da OpenAI, rodando no Groq) respondeu melhor em portugues nos testes.
+    "groq": ("https://api.groq.com/openai/v1", "openai/gpt-oss-120b"),
     "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-2.5-flash"),
     "openai": (None, "gpt-4o-mini"),  # None = endereco padrao da biblioteca
 }
-MAX_TOKENS_RESPOSTA = 300  # mantem contexto e custo baixos (README, secao 9 - riscos)
+# Limite de tamanho da resposta. Era 300; subiu para 1000 porque o
+# gpt-oss "pensa" antes de responder e esse raciocinio conta no limite -
+# com 300, respostas mais longas vinham cortadas no meio. No Groq e gratuito.
+MAX_TOKENS_RESPOSTA = 1000
 
 _PALAVRAS_FALTA = ("faltar", "falta", "faltas")
 _PALAVRAS_ATRASO = ("atraso", "atrasar", "atrasado", "atrasada")
@@ -243,7 +248,8 @@ def _perguntar_ia(pergunta: str, contexto: str) -> str:
         "Você é o assistente do InternHub, sistema de banco de horas de "
         "estágio. Responda em português, em poucas frases. Use SOMENTE "
         "os dados abaixo — nunca invente número. Se faltar informação "
-        "pra responder, diga isso claramente.\n\n" + contexto
+        "pra responder, diga isso claramente. Escreva em texto simples, "
+        "sem markdown (nada de asteriscos nem listas).\n\n" + contexto
     )
 
     try:
