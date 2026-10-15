@@ -40,7 +40,16 @@ from servicos.painel import resumo_estagiario
 from servicos.saldo import calcular_saldo_acumulado, verificar_alerta
 from servicos.simulador import simular_cenario
 
-MODELO_OPENAI = "gpt-4o-mini"  # decisao fechada no README, secao 11
+# Provedor da IA (Entrega 3, Miguel). A OpenAI nao tem cota gratuita na API
+# (precisa de cartao e credito minimo), entao o padrao passou a ser o Groq,
+# que tem plano gratuito e aceita a mesma biblioteca da OpenAI - so muda o
+# endereco e o modelo. Para usar outro, basta trocar IA_PROVEDOR no .env.
+PROVEDORES_IA = {
+    # provedor: (endereco da API compativel com a OpenAI, modelo padrao)
+    "groq": ("https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"),
+    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-2.5-flash"),
+    "openai": (None, "gpt-4o-mini"),  # None = endereco padrao da biblioteca
+}
 MAX_TOKENS_RESPOSTA = 300  # mantem contexto e custo baixos (README, secao 9 - riscos)
 
 _PALAVRAS_FALTA = ("faltar", "falta", "faltas")
@@ -200,18 +209,35 @@ def _extrair_horas_atraso(pergunta: str) -> float:
     return 1.0 if any(palavra in pergunta_lower for palavra in _PALAVRAS_ATRASO) else 0.0
 
 
+def configuracao_ia() -> tuple[str, str | None, str | None, str]:
+    """Le do .env qual provedor usar: (provedor, chave, endereco, modelo).
+
+    IA_PROVEDOR (groq, gemini ou openai) e IA_CHAVE escolhem o provedor;
+    IA_MODELO troca o modelo se precisar. Quem ja tinha so OPENAI_API_KEY
+    no .env (como na Entrega 2) continua funcionando com a OpenAI.
+    """
+    provedor = (os.getenv("IA_PROVEDOR") or "groq").strip().lower()
+    chave = os.getenv("IA_CHAVE")
+    if not chave and os.getenv("OPENAI_API_KEY"):
+        provedor, chave = "openai", os.getenv("OPENAI_API_KEY")
+    if provedor not in PROVEDORES_IA:
+        provedor = "groq"
+    endereco, modelo_padrao = PROVEDORES_IA[provedor]
+    return provedor, chave, endereco, os.getenv("IA_MODELO") or modelo_padrao
+
+
 def _perguntar_ia(pergunta: str, contexto: str) -> str:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+    provedor, chave, endereco, modelo = configuracao_ia()
+    if not chave:
         return (
             "O assistente de IA não está configurado neste ambiente "
-            "(falta OPENAI_API_KEY no .env)."
+            "(falta IA_CHAVE no .env - veja o .env.example)."
         )
 
     # Cliente instanciado aqui dentro (não no topo do módulo) pra não
     # quebrar o import se a chave ainda não estiver setada - por exemplo,
     # durante a coleta de testes do pytest.
-    cliente = OpenAI(api_key=api_key)
+    cliente = OpenAI(api_key=chave, base_url=endereco)
 
     prompt_sistema = (
         "Você é o assistente do InternHub, sistema de banco de horas de "
@@ -222,7 +248,7 @@ def _perguntar_ia(pergunta: str, contexto: str) -> str:
 
     try:
         resposta = cliente.chat.completions.create(
-            model=MODELO_OPENAI,
+            model=modelo,
             max_tokens=MAX_TOKENS_RESPOSTA,
             temperature=0.3,
             messages=[
@@ -233,7 +259,7 @@ def _perguntar_ia(pergunta: str, contexto: str) -> str:
         return resposta.choices[0].message.content.strip()
 
     except Exception as erro:
-        print(f"[assistente] erro ao chamar a OpenAI: {erro}")
+        print(f"[assistente] erro ao chamar a IA ({provedor}): {erro}")
         return (
             "Não consegui falar com o assistente de IA agora — pode ser "
             "instabilidade da API ou de conexão. Seus dados de saldo "

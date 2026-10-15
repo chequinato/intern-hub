@@ -187,3 +187,27 @@ def test_remover_feriado_devolve_204_e_some_da_lista(cliente):
     assert cliente.delete(f"/feriados/{feriado['id']}").status_code == 204
     assert cliente.get("/feriados").json() == []
     assert cliente.delete(f"/feriados/{feriado['id']}").status_code == 404
+
+
+# --- assistente: provedor de IA -------------------------------------------------
+
+
+def test_provedor_de_ia_vem_do_env(monkeypatch):
+    """Groq e o padrao; Gemini pelo IA_PROVEDOR; o .env antigo (so com
+    OPENAI_API_KEY, da Entrega 2) continua usando a OpenAI."""
+    from servicos.assistente import configuracao_ia
+
+    for variavel in ("IA_PROVEDOR", "IA_CHAVE", "IA_MODELO", "OPENAI_API_KEY"):
+        monkeypatch.delenv(variavel, raising=False)
+    assert configuracao_ia()[0] == "groq"
+    assert configuracao_ia()[1] is None  # sem chave: o assistente so avisa
+
+    monkeypatch.setenv("IA_PROVEDOR", "gemini")
+    monkeypatch.setenv("IA_CHAVE", "chave-de-teste")
+    provedor, _, endereco, _ = configuracao_ia()
+    assert provedor == "gemini" and "googleapis" in endereco
+
+    monkeypatch.delenv("IA_PROVEDOR")
+    monkeypatch.delenv("IA_CHAVE")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-teste")
+    assert configuracao_ia()[:2] == ("openai", "sk-teste")

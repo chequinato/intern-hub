@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 
-# Le o .env (OPENAI_API_KEY, API_TOKEN) para o ambiente ANTES de qualquer
+# Le o .env (IA_CHAVE, API_TOKEN...) para o ambiente ANTES de qualquer
 # outro import deste pacote - api/seguranca.py e servicos/assistente.py
 # leem essas variaveis com os.getenv(), que so enxerga o que ja estiver
 # no ambiente do processo.

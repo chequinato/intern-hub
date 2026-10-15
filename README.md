@@ -42,8 +42,11 @@ uvicorn api.app_api:app --reload
 - O `.env` pode ficar com os dois campos vazios:
   - sem `API_TOKEN`, a API roda aberta, sem exigir token (ver
     `api/seguranca.py`);
-  - sem `OPENAI_API_KEY`, o assistente de IA responde com um aviso e todo
-    o resto funciona normalmente.
+  - sem `IA_CHAVE`, o assistente de IA responde com um aviso e todo o
+    resto funciona normalmente. O provedor padrão é o **Groq**, que é
+    gratuito: crie uma chave em https://console.groq.com/keys e cole em
+    `IA_CHAVE`. Também funciona com Gemini ou OpenAI, trocando
+    `IA_PROVEDOR` (ver `.env.example`).
 - `popular_demo.py` cria a gestora Carla Mendes e três estagiários com
   cerca de três meses de ponto: Lucas Andrade (saldo positivo, um dia
   pendente e um pedido esperando aprovação), Beatriz Souza (saldo em
@@ -80,7 +83,7 @@ Na raiz do projeto, com o `.venv` ativado:
 pytest -v
 ```
 
-São 47 casos em três arquivos:
+São 48 casos em três arquivos:
 
 - `testes/test_calculo.py` — regras do dia (horas trabalhadas, almoço
   mínimo de 1h, pendência, ordem dos horários, limite legal).
