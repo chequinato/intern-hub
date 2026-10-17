@@ -36,7 +36,7 @@
 
 /* -- Semana (anel) ------------------------------------------------------------- */
 
-.semana { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; }
+.semana { display: flex; align-items: center; align-content: center; gap: 26px; flex-wrap: wrap; }
 .anel-valor { font-size: 24px; font-weight: 680; letter-spacing: -.03em; }
 .anel-legenda { font-size: 12.5px; color: var(--texto-3); }
 .lista-regras { list-style: none; flex: 1; min-width: 170px; display: flex; flex-direction: column; }

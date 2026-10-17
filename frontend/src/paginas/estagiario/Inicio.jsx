@@ -1,9 +1,10 @@
 import { Link, useNavigate, useOutletContext } from "react-router-dom";
-import { ArrowRight, CalendarDays, CalendarRange, CircleAlert, GraduationCap, Info, LifeBuoy, TriangleAlert } from "lucide-react";
-import { acentuar } from "../../api/cliente";
+import { ArrowRight, CalendarDays, CalendarRange, CircleAlert, GraduationCap, Info, LifeBuoy, Plus, TriangleAlert } from "lucide-react";
+import { acentuar, api } from "../../api/cliente";
+import { useApiState } from "../../useApiState";
 import { CartaoPonto } from "../../components/CartaoPonto";
 import { GraficoTendencia, GraficoUltimosDias } from "../../components/Graficos";
-import { AnelProgresso, CarregandoPagina, ErroCarregar, Indicador, Numero } from "../../components/Ui";
+import { AnelProgresso, CarregandoPagina, ErroCarregar, Indicador, Numero, Prioridade, SeloChamado } from "../../components/Ui";
 import {
   diaDaSemana, formatarData, formatarDataCurta, formatarHoras, formatarSaldo, hora, horasEMinutos,
   NOMES_CAMPOS, NOMES_TIPO_COMPROMISSO, primeiroNome, saudacao,
@@ -144,20 +145,7 @@ export function Inicio() {
 
       <div className="grade grade-principal">
         <AgendaDoDia painel={painel} />
-        <section className="cartao cartao-chamados-resumo entra" style={{ "--i": 7 }}>
-          <div className="cartao-cabeca">
-            <h2><LifeBuoy />Chamados</h2>
-            <Link className="link-discreto" to="chamados">abrir <ArrowRight size={12} /></Link>
-          </div>
-          <div className="cartao-corpo">
-            <div className="indicador-valor"><Numero valor={painel.chamados_em_aberto} /></div>
-            <p className="texto-3" style={{ fontSize: 13, marginTop: 4 }}>
-              {painel.chamados_em_aberto
-                ? "chamado(s) em aberto com o gestor."
-                : "Nenhum chamado em aberto. Acesso, equipamento ou sistema travou? Abra um chamado."}
-            </p>
-          </div>
-        </section>
+        <ResumoChamados total={painel.chamados_em_aberto} />
       </div>
 
       <div className="espaco" />
@@ -219,6 +207,42 @@ export function Inicio() {
         </>
       )}
     </>
+  );
+}
+
+// Os chamados em aberto (ate 3), para o cartao ter a mesma altura da agenda
+// ao lado com informacao de verdade, e nao espaco vazio.
+function ResumoChamados({ total }) {
+  const chamados = useApiState(() => api.get("/chamados"), [total]);
+  const abertos = (chamados.dados || []).filter((c) => c.status !== "resolvido").slice(0, 3);
+  return (
+    <section className="cartao cartao-chamados-resumo entra" style={{ "--i": 7 }}>
+      <div className="cartao-cabeca">
+        <h2><LifeBuoy />Chamados</h2>
+        <Link className="link-discreto" to="chamados">ver todos <ArrowRight size={12} /></Link>
+      </div>
+      <div className="cartao-corpo">
+        <div>
+          <div className="indicador-valor"><Numero valor={total} /></div>
+          <p className="texto-3" style={{ fontSize: 13, marginTop: 2 }}>
+            {total ? "em aberto com o gestor" : "Nenhum chamado em aberto."}
+          </p>
+        </div>
+        {abertos.length > 0 && (
+          <ul className="resumo-chamados">
+            {abertos.map((c) => (
+              <li key={c.id}>
+                <Link to={`chamados?id=${c.id}`}>
+                  <b>{c.titulo}</b>
+                  <span><SeloChamado status={c.status} /><Prioridade nivel={c.prioridade} /></span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Link className="botao botao--pequeno" to="chamados?novo=1"><Plus />Novo chamado</Link>
+      </div>
+    </section>
   );
 }
 

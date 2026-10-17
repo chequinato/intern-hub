@@ -58,7 +58,7 @@
 
 /* -- Chamados ----------------------------------------------------------------- */
 
-.grade-chamados { grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); align-items: start; }
+.grade-chamados { grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); }
 .lista-chamados ul { list-style: none; }
 .lista-chamados-grupo { font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--texto-3); padding: 14px 20px 6px; }
 .chamado-linha {
@@ -97,7 +97,14 @@
 .conversa-acoes { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .conversa-fechada { display: flex; align-items: center; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--borda); font-size: 13px; color: var(--credito); background: var(--credito-fundo); border-radius: 0 0 var(--raio-lg) var(--raio-lg); }
 .conversa-fechada svg { width: 16px; height: 16px; }
+.cartao-chamados-resumo .cartao-corpo { display: flex; flex-direction: column; gap: 14px; }
 .cartao-chamados-resumo .indicador-valor { font-size: 34px; }
+.resumo-chamados { list-style: none; display: flex; flex-direction: column; border-top: 1px solid var(--borda); }
+.resumo-chamados li a { display: flex; flex-direction: column; gap: 6px; padding: 11px 0; border-bottom: 1px solid var(--borda); text-decoration: none; color: var(--texto); }
+.resumo-chamados li a:hover b { color: var(--marca-500); }
+.resumo-chamados b { font-weight: 600; font-size: 13.5px; }
+.resumo-chamados a > span { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--texto-3); }
+.cartao-chamados-resumo .botao { margin-top: auto; }
 
 /* -- Agenda ------------------------------------------------------------------- */
 
@@ -146,8 +153,9 @@
    Sempre grafite: e uma peca, nao uma tela - fica igual nos dois temas e no
    papel. Proporcao CR80 (54 x 86 mm). */
 
-.cracha-palco { display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap; }
-.cracha-moldura { padding: 28px; background: var(--superficie-2); border: 1px dashed var(--borda-forte); }
+.cracha-palco { display: flex; gap: 32px; flex-wrap: wrap; }
+.cracha-palco > .pilha > .cartao:last-child { flex: 1; }
+.cracha-moldura { padding: 28px; background: var(--superficie-2); border: 1px dashed var(--borda-forte); display: flex; align-items: center; justify-content: center; }
 
 .cracha {
   --c-papel: #16181B; --c-tinta: #ECEDEF; --c-fio: #2E3237; --c-apagado: #7B828A;

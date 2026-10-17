@@ -18,11 +18,16 @@
 }
 .marca { display: flex; align-items: center; gap: 10px; padding: 2px 8px 18px; color: var(--lateral-texto-forte); }
 .marca-simbolo {
-  width: 32px; height: 32px; border-radius: 9px; flex: none;
+  width: 32px; height: 32px; border-radius: 5px; flex: none;
   display: grid; place-items: center;
-  background: var(--marca-500); color: var(--marca-900);
+  background: var(--marca-500); color: #141619;
 }
-.marca-simbolo svg { width: 18px; height: 18px; stroke-width: 2.4; }
+.marca-simbolo svg { width: 72%; height: 72%; }
+/* A metade de baixo da ampulheta "enche" uma vez ao aparecer. */
+.logo-areia { transform-box: fill-box; transform-origin: 50% 100%; animation: logo-encher 800ms cubic-bezier(.2, .8, .2, 1) 150ms both; }
+@keyframes logo-encher { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .logo-areia { animation: none; } }
+
 .marca-nome { font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
 .marca-nome span { display: block; font-size: 11.5px; font-weight: 500; color: var(--lateral-texto); letter-spacing: 0; margin-top: 1px; }
 
@@ -108,7 +113,15 @@
 .grade-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .grade-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grade-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.grade-principal { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); align-items: start; }
+.grade-principal { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); }
+
+/* Cartoes lado a lado terminam na mesma linha: a grade estica todos ate a
+   altura do mais alto da fileira, e dentro do cartao quem cresce e o corpo
+   (logo abaixo do cabecalho) - o rodape, quando existe, fica colado embaixo.
+   Numa coluna com varios cartoes empilhados, o ultimo e que se estica. */
+.grade > .cartao, .grade > .pilha > .cartao:last-child { display: flex; flex-direction: column; }
+.grade > .pilha > .cartao:last-child { flex: 1; }
+.grade > .cartao > .cartao-cabeca + *, .grade > .pilha > .cartao:last-child > .cartao-cabeca + * { flex: 1; }
 .pilha { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .espaco { height: 16px; }
 
