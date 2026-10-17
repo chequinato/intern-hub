@@ -21,30 +21,43 @@ conversa com essa API por HTTP.
 ## Funcionalidades
 
 **Estagiário**
+- Login com e-mail e senha; cada pessoa vê só os próprios dados.
 - Painel inicial: saldo do banco de horas, horas da semana em relação ao
-  limite legal, pendências, pedidos em aberto, tendência mês a mês e os
-  últimos dias.
+  limite legal, pendências, pedidos, agenda do dia, chamados em aberto,
+  tendência mês a mês e os últimos dias.
 - Ponto em um clique (entrada, almoço, retorno, saída) ou lançamento do dia
   inteiro; histórico por semana mostrando o almoço descontado e o total da
   semana em relação a 30h.
+- **Agenda** com aulas, reuniões e **provas**: em dia de prova a meta cai
+  pela metade (Lei 11.788/2008, art. 10). Cada compromisso vai para o
+  **Google Agenda** com um clique, ou todos de uma vez num arquivo `.ics`.
 - Pedido de ajuste de ponto com aprovação do gestor e comprovante em PDF.
-- Relatório mensal com calendário do mês, saldo dia a dia, tendência do
-  semestre e exportação em PDF e Excel.
-- Simulador "e se eu faltar / atrasar", assistente de IA e edição da meta e
-  dos limites.
+- **Chamados ao gestor** para o que não é ponto (acesso, equipamento,
+  sistema, documentos), com conversa e andamento.
+- **Crachá virtual** com QR code: quem lê o código vê se o vínculo está
+  ativo, sem ver o banco de horas.
+- Relatório mensal com calendário do mês (dias de prova marcados), saldo dia
+  a dia, tendência do semestre e exportação em PDF e Excel.
+- Simulador "e se eu faltar / atrasar" e assistente de IA.
 
 **Gestor**
 - Visão da equipe: saldo de cada estagiário, quem está em alerta, quem
-  passou do limite legal e quantos pedidos esperam decisão.
-- Fila de aprovações, calendário de feriados e auditoria com filtros.
+  passou do limite legal, pedidos e chamados esperando resposta.
+- Por estagiário: meta e limites, próximas provas e o crachá (desativar no
+  fim do estágio).
+- Fila de aprovações, fila de chamados (prioridade alta primeiro),
+  calendário de feriados, auditoria e cadastro de outros gestores.
 
 **Regras:** almoço mínimo de 1h; dia com almoço incompleto fica fora do
 saldo até ser corrigido; alerta de saldo negativo (−5h); aviso de limite
-legal do estágio (Lei 11.788/2008: 6h por dia, 30h por semana); aviso de
-crédito antigo perto de vencer; feriado não conta como falta.
+legal do estágio (Lei 11.788/2008: 6h por dia, 30h por semana); em dia de
+prova a meta e o limite do dia caem pela metade; aviso de crédito antigo
+perto de vencer; feriado não conta como falta.
 
-**Segurança da API:** token de acesso, limite de requisições por minuto,
-validação de tudo o que entra e CORS só para o frontend.
+**Segurança:** login com senha guardada em hash (PBKDF2), sessão com prazo
+de 12h, regras de acesso por perfil em toda rota, limite de tentativas de
+login, chave do aplicativo, limite de requisições por minuto, validação de
+tudo o que entra e CORS só para o frontend.
 
 ## Requisitos
 
@@ -70,17 +83,19 @@ python -m venv .venv
 pip install -r requirements.txt
 
 copy .env.example .env              # Linux/macOS: cp .env.example .env
-python popular_demo.py              # recomendado: dados de exemplo
+python popular_demo.py              # cria os dados e as contas de exemplo
 uvicorn api.app_api:app --reload
 ```
 
 - API em `http://localhost:8000`, documentação interativa em
-  `http://localhost:8000/docs` (dá para testar todas as rotas por lá).
-- O `.env` pode ficar com os campos vazios: sem `API_TOKEN` a API roda
-  aberta, e sem `IA_CHAVE` o assistente funciona em modo demonstração (ver
-  "Assistente de IA", abaixo).
-- `popular_demo.py` só roda com o banco vazio. Sem ele, o sistema abre sem
-  nenhum cadastro.
+  `http://localhost:8000/docs`. Para testar rotas que pedem login por lá:
+  chame `POST /auth/entrar`, copie o `token` e cole no botão **Authorize**.
+- O `.env` pode ficar com os campos vazios: sem `API_TOKEN` a API aceita
+  qualquer cliente, e sem `IA_CHAVE` o assistente funciona em modo
+  demonstração (ver "Assistente de IA", abaixo).
+- `popular_demo.py` com o banco vazio cria tudo. Num banco de antes do login,
+  ele não apaga nada: só cria a conta de quem ainda não tem (e mostra os
+  e-mails no terminal) e acrescenta chamados e agenda de exemplo.
 
 ### 2. Frontend (React) — terminal 2
 
@@ -100,49 +115,55 @@ Se preencher `API_TOKEN` no `.env` da raiz, coloque o mesmo valor em
 
 A API só aceita chamadas do frontend em `localhost:5173` (CORS). Se o Vite
 abrir em outra porta (ex: 5174, quando a 5173 está ocupada), coloque esse
-endereço em `FRONTEND_URL` no `.env` da raiz e reinicie a API.
+endereço em `FRONTEND_URL` no `.env` da raiz e reinicie a API. O QR code do
+crachá também aponta para o primeiro endereço do `FRONTEND_URL`.
 
 ## Como usar
 
-### Primeiro acesso
+### Contas de exemplo
 
-Na tela de entrada, escolha **Sou estagiário** ou **Sou gestor** e clique no
-seu nome. Para se cadastrar, use **Cadastrar estagiário** (nome, meta por
-dia, meta por semana e gestor responsável) ou **Cadastrar gestor**. Não há
-senha: a escolha de perfil é uma decisão do projeto (ver "Limitações").
+Depois de `python popular_demo.py`, todas com a senha **`internhub123`**:
 
-Com os dados de exemplo:
+| E-mail | Quem | Bom para ver |
+|---|---|---|
+| `lucas@internhub.dev` | Lucas Andrade, estagiário | Saldo positivo, dia com pendência, pedido na fila, duas provas na agenda, chamado em andamento |
+| `beatriz@internhub.dev` | Beatriz Souza, estagiária | Saldo abaixo do limite de alerta, chamado sem resposta |
+| `rafael@internhub.dev` | Rafael Lima, estagiário | Dias acima do limite legal de 6h, chamado resolvido |
+| `carla@internhub.dev` | Carla Mendes, gestora | Equipe com os três, pedido para aprovar, fila de chamados |
 
-| Pessoa | Bom para ver |
-|---|---|
-| **Lucas Andrade** (estagiário) | Saldo positivo, dia com pendência de almoço, pedido na fila, aviso de crédito perto de vencer |
-| **Beatriz Souza** (estagiária) | Saldo abaixo do limite de alerta |
-| **Rafael Lima** (estagiário) | Dias acima do limite legal de 6h |
-| **Carla Mendes** (gestora) | Equipe com os três, pedido para aprovar, histórico de pedidos |
+Essas senhas são só da demonstração. Para uma conta nova, use **Criar conta**
+na tela de entrada (estagiário). O primeiro gestor de um banco vazio se
+cadastra pela tela de entrada; os próximos são cadastrados por um gestor, em
+**Conta e gestores**.
 
 ### Estagiário
 
 | Tela | Como usar |
 |---|---|
-| **Início** | Resumo do banco de horas. O botão do cartão "Ponto de hoje" marca a próxima marcação com a hora atual (entrada → almoço → retorno → saída). Dias com pendência têm atalho "Pedir ajuste". |
-| **Ponto** | Mesmo botão de ponto, mais o formulário **Lançar um dia inteiro** (para dias que ficaram para trás) e o histórico do mês, agrupado por semana. Use as setas para trocar de mês. |
-| **Solicitações** | Escolha o dia, o horário a corrigir, o horário certo e a justificativa. O pedido vai para o gestor; a lista mostra a resposta e o botão do comprovante em PDF. |
-| **Relatório** | Horas, faltas e saldo do mês, calendário colorido, gráficos e os botões **PDF** e **Excel**. |
-| **Simulação** | Arraste os controles de dias de falta e horas de atraso: o saldo projetado aparece na hora. Nada é gravado. |
+| **Início** | Resumo do banco de horas. O botão do cartão "Ponto de hoje" marca a próxima marcação com a hora atual. Em dia de prova aparece a meta reduzida. |
+| **Ponto** | Mesmo botão de ponto, mais o formulário **Lançar um dia inteiro** e o histórico do mês, agrupado por semana. |
+| **Agenda** | Cadastre provas, aulas, reuniões e entregas. **Google Agenda** abre o evento já preenchido no Google; **Baixar .ics** exporta todos (Google Agenda › Configurações › Importar). |
+| **Solicitações** | Escolha o dia, o horário a corrigir, o horário certo e a justificativa. O pedido vai para o gestor; a lista mostra a resposta e o comprovante em PDF. |
+| **Chamados** | **Novo chamado** com assunto, categoria, prioridade e descrição. A conversa com o gestor fica no chamado. |
+| **Relatório** | Horas, faltas e saldo do mês, calendário (com "P" nos dias de prova), gráficos, **PDF** e **Excel**. |
+| **Simulação** | Arraste os controles de faltas e atrasos: o saldo projetado aparece na hora. Nada é gravado. |
 | **Assistente** | Pergunte sobre saldo, semana, pendências, meses anteriores ou cenários ("E se eu faltar 2 dias?"). |
-| **Configurações** | Meta por dia e por semana, limite legal, alerta de saldo, prazo de vencimento e gestor responsável. |
+| **Crachá** | O crachá com QR code. **Imprimir** sai só o crachá; **Reemitir** troca o código se o impresso for perdido. |
+| **Configurações** | Meta e limites (só leitura: quem altera é o gestor) e troca de senha. |
 
 ### Gestor
 
 | Tela | Como usar |
 |---|---|
-| **Equipe** | Situação de cada estagiário: saldo, horas da semana, alertas e pedidos. |
+| **Equipe** | Situação de cada estagiário. **Gerenciar** abre meta e limites, próximas provas e o crachá. |
 | **Aprovações** | **Aprovar** aplica o horário no registro e recalcula o saldo; **Rejeitar** fecha o pedido sem mexer no registro. |
-| **Feriados** | Cadastre um dia não útil ou use os atalhos dos feriados nacionais. Feriado não conta como falta para ninguém. |
-| **Auditoria** | Todos os pedidos, com quem pediu, quem decidiu e quando. Filtre por situação, busque pelo nome e baixe o comprovante. |
+| **Chamados** | Fila da equipe. Responder já coloca o chamado "em andamento"; **Marcar resolvido** fecha. |
+| **Feriados** | Cadastre um dia não útil ou use os atalhos dos feriados nacionais. |
+| **Auditoria** | Pedidos da equipe, com quem pediu, quem decidiu e quando. |
+| **Conta e gestores** | Troca de senha e cadastro de outro gestor. |
 
-O botão **Tema claro / Tema escuro** fica na barra lateral, e **Trocar
-perfil** volta para a tela de entrada.
+O botão **Tema claro / Tema escuro** fica na barra lateral, e **Sair**
+encerra a sessão.
 
 ## Assistente de IA
 
@@ -172,18 +193,26 @@ Na raiz do projeto, com o `.venv` ativado:
 pytest -v
 ```
 
-São 49 casos em três arquivos, todos num banco em memória (não mexem no
+São 82 casos em cinco arquivos, todos num banco em memória (não mexem no
 `dados.db`):
 
 - `testes/test_calculo.py` — regras do dia (horas trabalhadas, almoço
   mínimo de 1h, pendência, ordem dos horários, limite legal).
 - `testes/test_api.py` — requisições de verdade na API: registro e saldo,
   validação 422, fluxo completo de ajuste com aprovação do gestor, faltas do
-  relatório, exportação PDF/Excel, aviso de limite legal semanal, bloqueio
-  401 sem token e CORS restrito ao frontend.
+  relatório, exportação PDF/Excel, aviso de limite legal semanal, chave do
+  aplicativo e CORS restrito ao frontend.
 - `testes/test_entrega3.py` — ponto rápido, edição da meta, tendência mês a
-  mês, painéis do estagiário e do gestor, remoção de feriado, provedor de
-  IA e modo demonstração do assistente.
+  mês, painéis, remoção de feriado, provedor de IA e modo demonstração.
+- `testes/test_login.py` — senha em hash, sessão que vence e que acaba ao
+  sair, limite de tentativas, e as regras de acesso: um estagiário não vê o
+  outro, gestor só vê a própria equipe, só o dono pede ajuste, só o gestor
+  responsável decide e altera a meta. Um teste percorre **todas** as rotas
+  da API e confere que cada uma exige login, menos as abertas de propósito.
+- `testes/test_novidades.py` — chamados (fila por prioridade, andamento que
+  só vai para a frente), dia de prova (meta e limite pela metade no saldo,
+  no relatório e na tendência), exportação `.ics` e crachá (verificação sem
+  login, reemissão, desativação).
 
 Vários testes nasceram de defeitos encontrados e corrigidos (o docstring de
 cada um conta o caso): faltas contadas antes do primeiro ponto, aviso de
@@ -200,7 +229,8 @@ todo filtro.
 **Onde ele fez o trabalho pesado:** o saldo do banco de horas é calculado
 numa única consulta (`servicos/saldo.py`, `calcular_saldo_acumulado`). O
 banco converte cada horário em segundos, desconta o almoço com o mínimo de
-1h e soma todos os dias completos, sem trazer os registros para o Python. A
+1h, marca os dias de prova (que cobram metade da meta) com uma subconsulta
+e soma todos os dias completos, sem trazer os registros para o Python. A
 tendência mês a mês usa a mesma conta agrupada por mês (`saldo_por_mes`).
 
 | # | Recurso | Para quê | Onde |
@@ -209,36 +239,40 @@ tendência mês a mês usa a mesma conta agrupada por mês (`saldo_por_mes`).
 | 2 | `declarative_base` | Classe `Base` de todos os modelos | `banco/conexao.py` → `modelos/` |
 | 3 | `sessionmaker` / `Session` | Uma sessão por requisição (`Depends(get_session)`) | `banco/conexao.py`, todas as rotas |
 | 4 | `Base.metadata.create_all` | Cria as tabelas quando a API sobe | `banco/conexao.py` |
-| 5 | `Column` e tipos (`Integer`, `String`, `Float`, `Date`, `Time`, `DateTime`) com `nullable`, `unique`, `default` | As 6 tabelas | `modelos/` |
-| 6 | `ForeignKey` (com `unique=True` no 1-para-1) | Registro → estagiário, configuração → estagiário, solicitação → registro/gestor | `modelos/` |
-| 7 | `relationship` com `back_populates`, `uselist=False`, `cascade`, `order_by` | Navegar entre estagiário, configuração, registros e solicitações | `modelos/estagiario.py`, `gestor.py`, `registro_ponto.py` |
-| 8 | `query().filter()` / `filter_by()` | Buscar por pessoa, data e status | rotas e serviços |
+| 5 | `Column` e tipos (`Integer`, `String`, `Float`, `Boolean`, `Date`, `Time`, `DateTime`) com `nullable`, `unique`, `index`, `default` | As 12 tabelas | `modelos/` |
+| 6 | `ForeignKey` (com `unique=True` no 1-para-1) | Registro → estagiário, configuração/crachá/conta → estagiário, chamado → estagiário e gestor | `modelos/` |
+| 7 | `relationship` com `back_populates`, `uselist=False`, `cascade`, `order_by` | Navegar entre estagiário, conta, configuração, registros, solicitações, chamados e mensagens | `modelos/` |
+| 8 | `query().filter()` / `filter_by()` | Buscar por pessoa, data, status e token | rotas e serviços |
 | 9 | `order_by()` e `.desc()` | Histórico em ordem; auditoria do mais recente para o mais antigo | `api/rotas/registros.py`, `servicos/solicitacao.py` |
-| 10 | `join()` | Fila do gestor: só pedidos da equipe dele | `servicos/solicitacao.py` |
+| 10 | `join()` | Fila e auditoria do gestor: só pedidos da equipe dele | `servicos/solicitacao.py` |
 | 11 | `func.sum()` e `func.count()` | Soma das horas e contagem de dias no banco | `servicos/saldo.py`, `servicos/painel.py` |
-| 12 | `case()`, `func.cast()`, `func.strftime()` | Horário em segundos e almoço mínimo de 1h dentro da consulta | `servicos/saldo.py` |
-| 13 | `group_by()` | Saldo mês a mês (tendência) | `servicos/saldo.py` |
-| 14 | `extract("month"/"year")` | Registros de um mês | `api/rotas/relatorio.py` |
-| 15 | `func.min()` / `func.max()` + `scalar()` | Primeiro ponto (faltas) e último ponto (painel do gestor) | `api/rotas/relatorio.py`, `servicos/painel.py` |
-| 16 | `is_not(None)` / `is_(None)` | Só dias completos no saldo; achar dias com pendência | `servicos/saldo.py`, `servicos/painel.py` |
-| 17 | `limit()` | Os últimos dias do painel | `servicos/painel.py` |
-| 18 | `add`, `add_all`, `delete`, `commit`, `rollback`, `refresh` + `SQLAlchemyError` | Gravar com integridade: ou grava tudo, ou nada | rotas de criação, `servicos/solicitacao.py`, `servicos/ponto.py`, `popular_demo.py` |
+| 12 | `case()`, `func.cast()`, `func.strftime()` | Horário em segundos, almoço mínimo de 1h e dia de prova dentro da consulta; fila de chamados por prioridade | `servicos/saldo.py`, `servicos/chamados.py` |
+| 13 | `group_by()` | Saldo mês a mês; chamados por status | `servicos/saldo.py`, `servicos/chamados.py` |
+| 14 | `select()` como subconsulta + `in_()` | Datas de prova usadas dentro da soma do saldo | `servicos/agenda.py`, `servicos/saldo.py` |
+| 15 | `extract("month"/"year")` | Registros de um mês | `api/rotas/relatorio.py` |
+| 16 | `func.min()` / `func.max()` + `scalar()` | Primeiro ponto (faltas, início do estágio no crachá) e último ponto | `api/rotas/relatorio.py`, `servicos/cracha.py`, `servicos/painel.py` |
+| 17 | `is_not(None)` / `is_(None)` | Só dias completos no saldo; achar dias com pendência | `servicos/saldo.py`, `servicos/painel.py` |
+| 18 | `limit()` | Os últimos dias do painel | `servicos/painel.py` |
+| 19 | `query().filter().delete()` | Apagar sessões vencidas ou derrubadas num comando só | `servicos/autenticacao.py` |
+| 20 | `add`, `add_all`, `delete`, `commit`, `rollback`, `refresh` + `SQLAlchemyError` | Gravar com integridade: ou grava tudo, ou nada (estagiário + configuração + conta numa transação) | rotas de criação, serviços, `popular_demo.py` |
 
 ## Estrutura
 
 ```
 api/              # FastAPI: app, rotas por modulo, schemas Pydantic,
-                  # autenticacao por token e rate limiting (seguranca.py)
+                  # regras de acesso (permissoes.py), chave do aplicativo
+                  # e rate limiting (seguranca.py)
 banco/            # engine e sessao do SQLAlchemy (conexao.py) + dados.db
 modelos/          # classes mapeadas: Estagiario, Gestor, Configuracao,
-                  # RegistroPonto, SolicitacaoAjuste, Feriado
+                  # RegistroPonto, SolicitacaoAjuste, Feriado, Usuario,
+                  # SessaoLogin, Chamado, MensagemChamado, Compromisso, Cracha
 servicos/         # regras de negocio: calculo, saldo, ponto, painel,
-                  # simulador, vencimento, feriados, solicitacao,
-                  # assistente, exportacoes
-testes/           # pytest (conftest.py tem o banco em memoria dos testes)
+                  # simulador, vencimento, feriados, solicitacao, assistente,
+                  # exportacoes, autenticacao, chamados, agenda, cracha
+testes/           # pytest (conftest.py tem o banco em memoria e os ajudantes de login)
 frontend/         # interface em React (Vite), consome a API por HTTP
 docs/             # registro das decisoes do grupo (decisoes.md)
-popular_demo.py   # carga de dados de exemplo
+popular_demo.py   # carga de dados e contas de exemplo
 ```
 
 Cada arquivo do backend começa dizendo quem é o dono do módulo e quais
@@ -246,12 +280,16 @@ recursos do SQLAlchemy ele usa.
 
 ## Limitações conhecidas
 
-- **Sem login por pessoa.** Qualquer um escolhe o perfil e o nome na tela de
-  entrada. Isso foi decidido na Entrega 1 e mantido; o token protege o
-  acesso à API, mas não identifica a pessoa.
-- **SQLite e um processo só.** O banco é um arquivo local e o limite de
-  requisições fica em memória (zera quando a API reinicia). Basta para uma
-  equipe pequena, não para muitos acessos ao mesmo tempo.
+- **Sem recuperação de senha por e-mail.** Quem esquecer a senha precisa de
+  uma conta nova (ou de alguém com acesso ao banco). Enviar e-mail exigiria
+  um servidor de e-mail, fora do escopo.
+- **Integração com o Google Agenda é de mão única.** O InternHub manda os
+  compromissos para o Google (link e `.ics`), mas não lê a agenda do Google.
+  Ler exigiria login com conta Google (OAuth) e uma chave de projeto, e quem
+  avaliar o trabalho não conseguiria testar.
+- **SQLite e um processo só.** O banco é um arquivo local e os limites de
+  requisições e de tentativas de login ficam em memória (zeram quando a API
+  reinicia). Basta para uma equipe pequena.
 - **O vencimento só avisa.** O crédito antigo aparece como "perto de
   vencer", mas não é descontado do saldo automaticamente.
 - **"Dias trabalhados" do relatório** conta todo dia com ponto, mesmo que
@@ -265,11 +303,12 @@ recursos do SQLAlchemy ele usa.
 
 **Fora do escopo, de propósito:** integração com o sistema de ponto real
 da empresa, mais de um contrato por estagiário, documento com valor legal
-ou trabalhista, login com senha por pessoa e compensação de horas (folga
-usando o crédito do banco).
+ou trabalhista e compensação de horas (folga usando o crédito do banco).
 
 ## Histórico
 
 A primeira interface foi feita em Streamlit e foi substituída pelo frontend
-em React (o código antigo continua no histórico do Git). As decisões do
-grupo, com data e motivo, estão em [`docs/decisoes.md`](docs/decisoes.md).
+em React (o código antigo continua no histórico do Git). O login com senha
+estava fora do escopo na Entrega 1 e entrou na Entrega 3, junto com os
+chamados, a agenda e o crachá. As decisões do grupo, com data e motivo,
+estão em [`docs/decisoes.md`](docs/decisoes.md).

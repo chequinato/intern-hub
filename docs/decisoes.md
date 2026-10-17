@@ -54,6 +54,27 @@ mudou depois, a linha nova diz o que mudou e aponta para a anterior.
 | 15/10 | **Modo demonstração do assistente**: sem chave, ele responde com os números do banco. | O enunciado pede um modo de demonstração para quem avaliar sem a chave da API. | Miguel |
 | 15/10 | **Padronizar os módulos de feriado e relatório** (cabeçalho com dono, comentários, estilo). | Era o único trecho com estilo diferente do resto do código; prometido na Entrega 2. | Miguel |
 
+## Fase 3b — Funcionalidades novas da Entrega 3 (17/10)
+
+O sistema atendia as 23 funcionalidades do refinamento, mas o lado do
+estagiário ficou pequeno (bater ponto, ver saldo, pedir ajuste). O grupo
+decidiu enriquecer o sistema mantendo o foco no controle do estágio. Cada
+item novo precisava de um motivo ligado a esse foco.
+
+| Data | Decisão | Motivo | Quem |
+|---|---|---|---|
+| 17/10 | **Login com e-mail e senha.** Revoga a decisão de 09/09 ("sem login com senha") e a de 15/10 (login mantido fora). | Testando a Entrega 3, vimos que sem login qualquer pessoa entrava como gestor e aprovava os próprios ajustes, o que anula a regra principal do sistema. O token da API protegia as rotas, mas não dizia quem estava usando. | Miguel (com o grupo) |
+| 17/10 | Senha guardada em **hash PBKDF2-SHA256 com sal** (biblioteca padrão `hashlib`), e o token do login também guardado só em hash. Mesma mensagem para e-mail inexistente e senha errada. Limite de 10 tentativas de login por minuto. | Nunca guardar senha em texto. Quem copiar o banco não consegue entrar; a tela de login não serve para descobrir quem tem conta; adivinhar senha fica impraticável. Sem lib nova para instalar. | Miguel |
+| 17/10 | A chave da API (`API_TOKEN`) muda do header `Authorization` para **`X-API-Key`**. | O `Authorization` passou a levar o token do login. A chave identifica o aplicativo; o login identifica a pessoa. É a separação que a Entrega 1 já descrevia. | Miguel |
+| 17/10 | **Regras de acesso:** o estagiário vê e altera só o que é dele; o gestor vê a própria equipe, mas não bate ponto nem abre pedido no lugar do estagiário; só o gestor responsável decide pedidos, muda a meta e desativa crachá. | Sem isso o login seria só uma tela: qualquer pessoa logada ainda acessaria os dados de todo mundo pela API. Há um teste que percorre todas as rotas e confere que exigem login. | Miguel |
+| 17/10 | **A meta passa a ser alterada só pelo gestor.** A tela de Configurações do estagiário vira só leitura. | A meta é contratual. O estagiário que pudesse baixar a própria meta ganharia saldo sem trabalhar. | Miguel |
+| 17/10 | **Só um gestor cadastra outro gestor** (o primeiro de um banco vazio se cadastra sozinho). | Se o cadastro de gestor fosse aberto, um estagiário criaria um "gestor" para aprovar os próprios ajustes. | Miguel |
+| 17/10 | **Chamados ao gestor**, com conversa, prioridade e andamento que só vai para a frente. | Problemas que não são ponto (acesso bloqueado, equipamento, sistema fora do ar, documentos) não tinham canal. Segue o mesmo desenho das solicitações de ajuste (serviço levanta exceção, rota traduz em status). | Miguel |
+| 17/10 | **Agenda com dia de prova: a meta e o limite do dia caem pela metade.** | Lei 11.788/2008, art. 10, § 2º: nos períodos de avaliação a carga horária do estágio é reduzida pelo menos à metade. O sistema cobrava a meta cheia em dia de prova. A agenda deixa de ser enfeite e passa a entrar no cálculo do saldo. | Miguel |
+| 17/10 | **Google Agenda sem a API do Google:** link "adicionar ao Google Agenda" por compromisso e exportação `.ics`. Ler a agenda do Google fica de fora. | A integração completa exigiria OAuth com conta Google e uma chave de projeto: o professor não conseguiria testar numa máquina limpa e a apresentação dependeria de internet e de login no Google. O link e o `.ics` são formatos abertos que o próprio Google aceita. | Miguel |
+| 17/10 | **Crachá virtual com QR code** e página pública de verificação. A página mostra só nome, gestor e situação; o crachá pode ser reemitido (o código antigo para de valer) e desativado pelo gestor. | Comprovar o vínculo de estágio na portaria, no RH ou na faculdade sem expor o banco de horas. O código é aleatório, então não dá para descobrir o crachá de outra pessoa trocando um número no endereço. QR em SVG com a lib `qrcode`, sem Pillow. | Miguel |
+| 17/10 | As tabelas novas (conta, sessão, chamado, mensagem, compromisso, crachá) ficam **separadas**, sem coluna nova nas tabelas antigas. | O `create_all` cria tabelas que faltam, mas não acrescenta colunas. Assim quem já tem o banco não perde nada: `popular_demo.py` só cria as contas que faltam. | Miguel |
+
 ## Pendente
 
 - **Roteiro da apresentação** (15 minutos divididos por papel) e **documento
