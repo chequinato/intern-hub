@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 
-# Le o .env (IA_CHAVE, API_TOKEN...) para o ambiente ANTES de qualquer
+# Le o .env (IA_CHAVE, API_TOKEN, FRONTEND_URL...) para o ambiente ANTES de qualquer
 # outro import deste pacote - api/seguranca.py e servicos/assistente.py
 # leem essas variaveis com os.getenv(), que so enxerga o que ja estiver
 # no ambiente do processo.
@@ -25,7 +25,11 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.rotas import (
+    agenda,
     assistente,
+    auth,
+    chamados,
+    cracha,
     estagiarios,
     feriados,
     gestores,
@@ -37,7 +41,7 @@ from api.rotas import (
     simulacoes,
     solicitacoes,
 )
-from api.seguranca import LimiteDeRequisicoes, verificar_token
+from api.seguranca import LimiteDeRequisicoes, verificar_chave_api
 from banco.conexao import criar_tabelas
 
 
@@ -55,7 +59,8 @@ app = FastAPI(
         "API do banco de horas de estagio. Cobre cadastro de estagiarios, "
         "registro de ponto, saldo, relatorio, simulacao, feriados, o fluxo "
         "de solicitacao de ajuste com aprovacao do gestor, o assistente de IA, "
-        "o ponto rapido e os paineis do estagiario e do gestor."
+        "o ponto rapido, os paineis do estagiario e do gestor, o login, os "
+        "chamados, a agenda com dia de prova e o cracha virtual."
     ),
     lifespan=ciclo_de_vida,
 )
@@ -90,11 +95,18 @@ app.add_middleware(LimiteDeRequisicoes)
 
 # --- Rotas registradas -------------------------------------------------------
 # Cada dev acrescenta a linha do seu modulo quando o PR dele e mergeado.
-# dependencies=[Depends(verificar_token)] (item 21, fase final do Miguel):
-# toda rota de negocio passa a exigir o header Authorization com o token
-# certo. So a rota de saude "/", declarada direto no app mais abaixo, fica
-# de fora - serve para conferir se a API esta no ar.
-_protegida = [Depends(verificar_token)]
+# dependencies=[Depends(verificar_chave_api)] (item 21, fase final do Miguel):
+# toda rota de negocio exige o header X-API-Key com a chave do aplicativo,
+# quando ha uma no .env. So a rota de saude "/", declarada direto no app mais
+# abaixo, fica de fora - serve para conferir se a API esta no ar.
+#
+# O LOGIN (Entrega 3) e outra camada: cada rota que mostra ou altera dados de
+# alguem pede o usuario logado (Depends(usuario_logado), api/permissoes.py).
+# Ficam abertas so: o login, o cadastro de estagiario, a lista de gestores
+# (o cadastro precisa dela), o primeiro cadastro de gestor e a verificacao
+# publica do cracha. O teste test_toda_rota_de_dados_exige_login confere isso
+# rota por rota.
+_protegida = [Depends(verificar_chave_api)]
 app.include_router(estagiarios.router, dependencies=_protegida)    # Pedro Ribeiro (3.1)  - /estagiarios
 app.include_router(registros.router, dependencies=_protegida)      # Gustavo (3.2)        - /registros
 app.include_router(saldo.router, dependencies=_protegida)          # Gustavo (3.2)        - /saldo/{id}
@@ -106,10 +118,14 @@ app.include_router(solicitacoes.router, dependencies=_protegida)   # Pedro Henri
 app.include_router(assistente.router, dependencies=_protegida)     # Arthur (3.5)         - /assistente/perguntar
 app.include_router(ponto.router, dependencies=_protegida)          # Miguel (Entrega 3)   - /ponto/{id}
 app.include_router(painel.router, dependencies=_protegida)         # Miguel (Entrega 3)   - /painel/...
+app.include_router(auth.router, dependencies=_protegida)           # Miguel (Entrega 3)   - /auth (login)
+app.include_router(chamados.router, dependencies=_protegida)       # Miguel (Entrega 3)   - /chamados
+app.include_router(agenda.router, dependencies=_protegida)         # Miguel (Entrega 3)   - /agenda
+app.include_router(cracha.router, dependencies=_protegida)         # Miguel (Entrega 3)   - /cracha
 # -----------------------------------------------------------------------------
 
 
 @app.get("/", tags=["Saude"], summary="Confere se a API esta no ar")
 def raiz() -> dict:
-    """Rota de saude: responde sem token, so para confirmar que a API subiu."""
+    """Rota de saude: responde sem chave e sem login, so para confirmar que a API subiu."""
     return {"servico": "InternHub API", "status": "no ar", "documentacao": "/docs"}

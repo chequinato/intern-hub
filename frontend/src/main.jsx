@@ -10,6 +10,7 @@ import "./estilos/base.css";
 import "./estilos/componentes.css";
 import "./estilos/estrutura.css";
 import "./estilos/telas.css";
+import "./estilos/novidades.css";
 import App from "./App.jsx";
 
 createRoot(document.getElementById("root")).render(

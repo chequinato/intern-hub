@@ -1,9 +1,12 @@
 // Pecas pequenas de interface usadas em varias telas. Cada uma e so
 // apresentacao: recebe dados por props e devolve o pedaco de tela.
 
-import { CircleCheck, CircleX, Clock3, Inbox } from "lucide-react";
+import { useEffect } from "react";
+import { CircleCheck, CircleX, Clock3, Inbox, X } from "lucide-react";
 import { useContagem } from "../useContagem";
-import { corDoAvatar, formatarHoras, formatarSaldo, iniciais, NOMES_STATUS } from "../utils/formato";
+import {
+  corDoAvatar, formatarHoras, formatarSaldo, iniciais, NOMES_PRIORIDADE, NOMES_STATUS, NOMES_STATUS_CHAMADO,
+} from "../utils/formato";
 
 // Numero que conta ate o valor (ver useContagem.js).
 // formato: "saldo" (+2,5h), "horas" (6,5h) ou "inteiro" (12)
@@ -118,6 +121,58 @@ export function AnelProgresso({ fracao, tamanho = 132, espessura = 12, tom = "ma
       <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}>
         {children}
       </div>
+    </div>
+  );
+}
+
+// --- Entrega 3 -------------------------------------------------------------
+
+const COR_STATUS_CHAMADO = { aberto: "atencao", em_andamento: "info", resolvido: "credito" };
+
+export function SeloChamado({ status }) {
+  return (
+    <span className={`selo selo--${COR_STATUS_CHAMADO[status] || "info"}`}>
+      <span className={`ponto${status === "em_andamento" ? " ponto--vivo" : ""}`} />
+      {NOMES_STATUS_CHAMADO[status] || status}
+    </span>
+  );
+}
+
+// Prioridade como tres barrinhas (uma, duas ou tres cheias): le-se de longe
+// sem depender so da cor.
+export function Prioridade({ nivel }) {
+  const cheias = { baixa: 1, media: 2, alta: 3 }[nivel] || 1;
+  return (
+    <span className={`prioridade prioridade--${nivel}`} title={`Prioridade ${NOMES_PRIORIDADE[nivel]}`}>
+      {[1, 2, 3].map((n) => <i key={n} className={n <= cheias ? "cheia" : ""} />)}
+      <span>{NOMES_PRIORIDADE[nivel]}</span>
+    </span>
+  );
+}
+
+// Painel que desliza da direita por cima da tela (detalhes de um item sem
+// sair da lista). Fecha no X, no Esc ou clicando fora.
+export function Gaveta({ aberta, titulo, subtitulo, aoFechar, children }) {
+  useEffect(() => {
+    if (!aberta) return undefined;
+    const tecla = (e) => e.key === "Escape" && aoFechar();
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+  }, [aberta, aoFechar]);
+
+  if (!aberta) return null;
+  return (
+    <div className="gaveta-fundo" onClick={aoFechar}>
+      <aside className="gaveta" role="dialog" aria-modal="true" aria-label={titulo} onClick={(e) => e.stopPropagation()}>
+        <header className="gaveta-cabeca">
+          <div>
+            <h2>{titulo}</h2>
+            {subtitulo && <span className="sub">{subtitulo}</span>}
+          </div>
+          <button type="button" className="botao botao--fantasma botao--icone" onClick={aoFechar} aria-label="Fechar"><X /></button>
+        </header>
+        <div className="gaveta-corpo">{children}</div>
+      </aside>
     </div>
   );
 }

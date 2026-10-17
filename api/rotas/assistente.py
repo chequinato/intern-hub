@@ -6,14 +6,18 @@ Rota fina, igual as demais (README, secao 7): valida que o estagiario
 existe (mesmo molde de api/rotas/saldo.py e api/rotas/simulacoes.py) e
 delega toda a logica pra servicos/assistente.py. Nao faz HTTP pra
 nenhuma outra rota - servico chama servico direto.
+
+Entrega 3 (login, Miguel): so o proprio estagiario conversa com o
+assistente sobre os dados dele.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from api.permissoes import exigir_o_proprio_estagiario, usuario_logado
 from api.schemas import AssistentePerguntaRequest, AssistentePerguntaResponse
 from banco.conexao import get_session
-from modelos import Estagiario
+from modelos import Usuario
 from servicos.assistente import responder_pergunta
 
 router = APIRouter(prefix="/assistente", tags=["Assistente"])
@@ -25,7 +29,9 @@ router = APIRouter(prefix="/assistente", tags=["Assistente"])
     summary="Pergunta ao assistente de IA sobre saldo e cenarios hipoteticos",
 )
 def perguntar(
-    dados: AssistentePerguntaRequest, session: Session = Depends(get_session)
+    dados: AssistentePerguntaRequest,
+    usuario: Usuario = Depends(usuario_logado),
+    session: Session = Depends(get_session),
 ) -> AssistentePerguntaResponse:
     """Recebe a pergunta, chama o servico e devolve a resposta pronta.
 
@@ -34,14 +40,7 @@ def perguntar(
     resposta normal. O unico jeito de dar erro aqui e o estagiario nao
     existir, e essa checagem ja acontece antes de chamar o servico.
     """
-    estagiario = (
-        session.query(Estagiario).filter_by(id=dados.estagiario_id).first()
-    )
-    if estagiario is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Estagiario {dados.estagiario_id} nao encontrado.",
-        )
+    exigir_o_proprio_estagiario(dados.estagiario_id, usuario, session)
 
     resposta = responder_pergunta(dados.pergunta, dados.estagiario_id, session)
     return AssistentePerguntaResponse(resposta=resposta)

@@ -24,5 +24,11 @@ class Gestor(Base):
         order_by="Estagiario.nome",
     )
 
+    # Entrega 3 (Miguel): a conta de acesso e os chamados recebidos.
+    usuario = relationship(
+        "Usuario", back_populates="gestor", uselist=False, cascade="all, delete-orphan"
+    )
+    chamados = relationship("Chamado", back_populates="gestor")
+
     def __repr__(self) -> str:
         return f"<Gestor id={self.id} nome={self.nome!r}>"

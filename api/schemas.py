@@ -26,7 +26,31 @@ from modelos.solicitacao_ajuste import (
     STATUS_APROVADO,
     STATUS_REJEITADO,
 )
+from modelos.chamado import CATEGORIAS_CHAMADO, PRIORIDADES_CHAMADO, STATUS_CHAMADO
+from modelos.compromisso import TIPOS_COMPROMISSO
+from servicos.autenticacao import TAMANHO_MINIMO_SENHA, normalizar_email
 from servicos.calculo import validar_ordem_dos_horarios
+
+
+def _email_valido(valor: str) -> str:
+    """Conferencia simples de e-mail (algo@dominio.algo), sem lib extra."""
+    email = normalizar_email(valor)
+    usuario, _, dominio = email.partition("@")
+    if not usuario or "." not in dominio or dominio.startswith(".") or dominio.endswith("."):
+        raise ValueError("informe um e-mail valido")
+    return email
+
+
+class _Credenciais(BaseModel):
+    """E-mail e senha - entram no cadastro de estagiario e de gestor."""
+
+    email: str = Field(max_length=120)
+    senha: str = Field(min_length=TAMANHO_MINIMO_SENHA, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def _email(cls, valor: str) -> str:
+        return _email_valido(valor)
 
 
 class ConfiguracaoCreate(BaseModel):
@@ -53,8 +77,12 @@ class ConfiguracaoResponse(ConfiguracaoCreate):
     estagiario_id: int
 
 
-class EstagiarioCreate(BaseModel):
-    """Payload de POST /estagiarios: nome + meta de horas."""
+class EstagiarioCreate(_Credenciais):
+    """Payload de POST /estagiarios: nome + meta de horas.
+
+    Entrega 3: tambem o e-mail e a senha da conta - o cadastro ja cria o
+    login junto (api/rotas/estagiarios.py).
+    """
 
     nome: str = Field(min_length=2, max_length=120)
     meta_horas_diaria: float = Field(default=META_HORAS_DIARIA_PADRAO, gt=0, le=24)
@@ -187,6 +215,7 @@ class RelatorioDiario(BaseModel):
     data: date
     horas_trabalhadas: float
     saldo_do_dia: float
+    dia_de_prova: bool = False
 
 class RelatorioMensalResponse(BaseModel):
     mes: int
@@ -198,14 +227,18 @@ class RelatorioMensalResponse(BaseModel):
     saldo_acumulado: float
     aviso_vencimento: Optional[str] = None
     evolucao_diaria: List[RelatorioDiario]
+    datas_provas: List[date] = []
 
 # --- Gestor, solicitacoes de ajuste e auditoria -------------------------------
 # Parte do Pedro Henrique (secao 3.4). Mesmo padrao da fundacao: um *Create
 # para o payload de entrada e um *Response para a saida.
 
 
-class GestorCreate(BaseModel):
-    """Payload de POST /gestores: so o nome de quem vai aprovar os ajustes."""
+class GestorCreate(_Credenciais):
+    """Payload de POST /gestores: o nome de quem vai aprovar os ajustes.
+
+    Entrega 3: tambem o e-mail e a senha da conta de acesso.
+    """
 
     nome: str = Field(min_length=2, max_length=120)
 
@@ -436,6 +469,22 @@ class TendenciaMes(BaseModel):
     saldo_acumulado: float
 
 
+class CompromissoResponse(BaseModel):
+    """Um item da agenda como ele sai da API."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    estagiario_id: int
+    titulo: str
+    tipo: str
+    data: date
+    inicio: time | None = None
+    fim: time | None = None
+    local: str | None = None
+    observacao: str | None = None
+
+
 class PainelEstagiarioResponse(BaseModel):
     """Tudo o que o painel inicial do estagiario mostra."""
 
@@ -458,6 +507,11 @@ class PainelEstagiarioResponse(BaseModel):
     aviso_vencimento: str | None = None
     ultimos_dias: List[DiaResumo]
     tendencia: List[TendenciaMes]
+    dia_de_prova_hoje: bool = False
+    meta_hoje: float
+    compromissos_hoje: List[CompromissoResponse] = []
+    proximos_compromissos: List[CompromissoResponse] = []
+    chamados_em_aberto: int = 0
 
 
 class LinhaEquipe(BaseModel):
@@ -487,4 +541,184 @@ class PainelGestorResponse(BaseModel):
     acima_limite_legal: int
     pedidos_na_fila: int
     saldo_medio: float
+    chamados_sem_resposta: int = 0
+    chamados_em_andamento: int = 0
     equipe: List[LinhaEquipe]
+
+
+# --- Entrega 3 (segunda parte): login, chamados, agenda e cracha ---------------
+# Parte do Miguel. Mesmo padrao: *Request/*Create na entrada, *Response na saida.
+
+
+class LoginRequest(BaseModel):
+    """Payload de POST /auth/entrar."""
+
+    email: str = Field(max_length=120)
+    senha: str = Field(min_length=1, max_length=128)
+
+
+class UsuarioResponse(BaseModel):
+    """Quem esta logado: o perfil e o id do estagiario ou do gestor."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str
+    perfil: str
+    nome: str
+    estagiario_id: int | None = None
+    gestor_id: int | None = None
+
+
+class LoginResponse(BaseModel):
+    """O token vai no header Authorization: Bearer <token> das proximas chamadas."""
+
+    token: str
+    expira_em: datetime
+    usuario: UsuarioResponse
+
+
+class TrocarSenhaRequest(BaseModel):
+    senha_atual: str = Field(min_length=1, max_length=128)
+    senha_nova: str = Field(min_length=TAMANHO_MINIMO_SENHA, max_length=128)
+
+
+class ChamadoCreate(BaseModel):
+    """Payload de POST /chamados. O estagiario vem do login, nao do payload."""
+
+    titulo: str = Field(min_length=3, max_length=120)
+    categoria: str
+    prioridade: str = "media"
+    descricao: str = Field(min_length=5, max_length=1000)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria(cls, valor: str) -> str:
+        if valor not in CATEGORIAS_CHAMADO:
+            raise ValueError(f"categoria precisa ser uma entre: {', '.join(CATEGORIAS_CHAMADO)}")
+        return valor
+
+    @field_validator("prioridade")
+    @classmethod
+    def _prioridade(cls, valor: str) -> str:
+        if valor not in PRIORIDADES_CHAMADO:
+            raise ValueError(f"prioridade precisa ser uma entre: {', '.join(PRIORIDADES_CHAMADO)}")
+        return valor
+
+    @field_validator("titulo", "descricao")
+    @classmethod
+    def _texto_de_verdade(cls, valor: str) -> str:
+        texto = valor.strip()
+        if len(texto) < 3:
+            raise ValueError("escreva um texto com pelo menos 3 caracteres")
+        return texto
+
+
+class MensagemCreate(BaseModel):
+    texto: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("texto")
+    @classmethod
+    def _texto(cls, valor: str) -> str:
+        if not valor.strip():
+            raise ValueError("a mensagem esta vazia")
+        return valor.strip()
+
+
+class ChamadoStatusUpdate(BaseModel):
+    status: str
+
+    @field_validator("status")
+    @classmethod
+    def _status(cls, valor: str) -> str:
+        if valor not in STATUS_CHAMADO:
+            raise ValueError(f"status precisa ser um entre: {', '.join(STATUS_CHAMADO)}")
+        return valor
+
+
+class MensagemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    autor: str
+    texto: str
+    enviada_em: datetime
+
+
+class ChamadoResponse(BaseModel):
+    """Chamado na lista: sem a conversa, com o resumo dela."""
+
+    id: int
+    estagiario_id: int
+    estagiario_nome: str
+    gestor_id: int
+    gestor_nome: str
+    titulo: str
+    categoria: str
+    prioridade: str
+    status: str
+    aberto_em: datetime
+    atualizado_em: datetime
+    resolvido_em: datetime | None = None
+    total_mensagens: int
+    ultima_mensagem_de: str
+
+
+class ChamadoDetalheResponse(ChamadoResponse):
+    """Chamado aberto na tela: com a conversa inteira."""
+
+    mensagens: List[MensagemResponse]
+
+
+class CompromissoCreate(BaseModel):
+    """Payload de POST /agenda. O estagiario vem do login."""
+
+    titulo: str = Field(min_length=2, max_length=120)
+    tipo: str
+    data: date
+    inicio: time | None = None
+    fim: time | None = None
+    local: str | None = Field(default=None, max_length=120)
+    observacao: str | None = Field(default=None, max_length=300)
+
+    @field_validator("tipo")
+    @classmethod
+    def _tipo(cls, valor: str) -> str:
+        if valor not in TIPOS_COMPROMISSO:
+            raise ValueError(f"tipo precisa ser um entre: {', '.join(TIPOS_COMPROMISSO)}")
+        return valor
+
+    @model_validator(mode="after")
+    def _horario(self) -> "CompromissoCreate":
+        if self.fim is not None and self.inicio is None:
+            raise ValueError("informe o horario de inicio antes do fim")
+        if self.inicio is not None and self.fim is not None and self.fim <= self.inicio:
+            raise ValueError("o fim precisa ser depois do inicio")
+        return self
+
+
+class CrachaResponse(BaseModel):
+    """O cracha como o proprio estagiario (ou o gestor dele) ve."""
+
+    estagiario_id: int
+    nome: str
+    gestor_nome: str | None = None
+    codigo: str
+    ativo: bool
+    emitido_em: datetime
+    inicio_estagio: date | None = None
+    url_verificacao: str
+
+
+class CrachaVerificacaoResponse(BaseModel):
+    """O que a pagina publica de verificacao mostra - o minimo necessario."""
+
+    nome: str
+    gestor_nome: str | None = None
+    ativo: bool
+    emitido_em: datetime
+    inicio_estagio: date | None = None
+
+
+class CrachaStatusUpdate(BaseModel):
+    ativo: bool

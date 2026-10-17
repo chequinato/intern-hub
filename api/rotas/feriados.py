@@ -4,15 +4,19 @@ Modulo dono: Pietro Paruci (Desenvolvedor 3 - secao 3.3).
 
 Segue o molde da fundacao (api/rotas/estagiarios.py): caminho sem barra no
 fim, status code explicito e commit dentro de try com rollback no except.
+
+Entrega 3 (login, Miguel): qualquer pessoa logada ve o calendario; so
+gestor cadastra ou remove feriado (um feriado muda as faltas de todo mundo).
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from api.permissoes import exigir_gestor, usuario_logado
 from api.schemas import FeriadoCreate, FeriadoResponse
 from banco.conexao import get_session
-from modelos import Feriado
+from modelos import Feriado, Usuario
 
 router = APIRouter(prefix="/feriados", tags=["Feriados"])
 
@@ -24,13 +28,16 @@ router = APIRouter(prefix="/feriados", tags=["Feriados"])
     summary="Cadastra um dia nao util",
 )
 def cadastrar_feriado(
-    dados: FeriadoCreate, session: Session = Depends(get_session)
+    dados: FeriadoCreate,
+    usuario: Usuario = Depends(usuario_logado),
+    session: Session = Depends(get_session),
 ) -> Feriado:
     """Cadastra o feriado, recusando data repetida com 409 em vez de erro 500.
 
     A coluna data tem unique=True no modelo: sem esta checagem, cadastrar o
     mesmo dia duas vezes estouraria direto no banco.
     """
+    exigir_gestor(usuario)
     ja_existe = session.query(Feriado).filter_by(data=dados.data).first()
     if ja_existe is not None:
         raise HTTPException(
@@ -61,7 +68,9 @@ def cadastrar_feriado(
     response_model=list[FeriadoResponse],
     summary="Lista os dias nao uteis cadastrados",
 )
-def listar_feriados(session: Session = Depends(get_session)) -> list[Feriado]:
+def listar_feriados(
+    _usuario: Usuario = Depends(usuario_logado), session: Session = Depends(get_session)
+) -> list[Feriado]:
     """Ordem cronologica - e assim que a tela e o relatorio esperam a lista."""
     return session.query(Feriado).order_by(Feriado.data).all()
 
@@ -71,12 +80,17 @@ def listar_feriados(session: Session = Depends(get_session)) -> list[Feriado]:
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove um dia nao util",
 )
-def remover_feriado(feriado_id: int, session: Session = Depends(get_session)) -> None:
+def remover_feriado(
+    feriado_id: int,
+    usuario: Usuario = Depends(usuario_logado),
+    session: Session = Depends(get_session),
+) -> None:
     """Acrescentada na Entrega 3 (Miguel), para a tela de feriados do gestor.
 
     Remover um feriado faz aquele dia voltar a contar como dia util - o
     relatorio passa a cobrar ponto nele na proxima consulta.
     """
+    exigir_gestor(usuario)
     feriado = session.query(Feriado).filter_by(id=feriado_id).first()
     if feriado is None:
         raise HTTPException(

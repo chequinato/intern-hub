@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeftRight, ChevronRight, Clock, Menu, Moon, Sun, X } from "lucide-react";
+import { ChevronRight, Clock, LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { api } from "../api/cliente";
 import { useSessao } from "../context/SessaoContext";
 import { useTema } from "../useTema";
@@ -9,7 +9,7 @@ import { Avatar } from "./Ui";
 import { Logo } from "./Logo";
 
 // Moldura de toda pagina logada: barra lateral (marca, pessoa, navegacao,
-// tema, trocar perfil) + barra superior (titulo da pagina e relogio) + a
+// tema, sair) + barra superior (titulo da pagina e relogio) + a
 // area onde cada rota desenha o proprio conteudo (<Outlet />).
 //
 // `itens` vem da area (estagiario ou gestor):
@@ -26,9 +26,9 @@ export function Estrutura({ base, pessoa, papel, itens, contexto }) {
     itens.find((item) => item.rota && local.pathname.startsWith(`${base}/${item.rota}`)) ||
     itens.find((item) => item.rota === "");
 
-  function trocarPerfil() {
-    sair();
-    navegar("/");
+  async function sairDaConta() {
+    await sair();
+    navegar("/", { replace: true });
   }
 
   return (
@@ -75,9 +75,9 @@ export function Estrutura({ base, pessoa, papel, itens, contexto }) {
             {escuro ? <Sun /> : <Moon />}
             {escuro ? "Tema claro" : "Tema escuro"}
           </button>
-          <button type="button" onClick={trocarPerfil}>
-            <ArrowLeftRight />
-            Trocar perfil
+          <button type="button" onClick={sairDaConta}>
+            <LogOut />
+            Sair
           </button>
           <div className={`status-api${apiNoAr === false ? " fora" : ""}`}>
             <i />

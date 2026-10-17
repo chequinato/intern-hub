@@ -1,46 +1,27 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Briefcase, ChevronRight, CircleAlert, GraduationCap, LoaderCircle, Search, UserPlus, X } from "lucide-react";
+import { Navigate, useNavigate } from "react-router-dom";
+import { Briefcase, CircleAlert, Eye, EyeOff, LoaderCircle, LogIn, UserPlus } from "lucide-react";
 import { api } from "../api/cliente";
 import { useApiState } from "../useApiState";
-import { useSessao } from "../context/SessaoContext";
+import { areaDoUsuario, useSessao } from "../context/SessaoContext";
 import { Logo } from "../components/Logo";
 import { VitrinePainel } from "../components/VitrinePainel";
 import { useNotificar } from "../components/Notificacoes";
-import { Avatar, Esqueleto, Vazio } from "../components/Ui";
 
-// Tela de entrada: escolher o perfil (estagiario ou gestor) e a pessoa, ou
-// cadastrar alguem novo. Nao e login - nao ha senha por pessoa (decisao da
-// Entrega 1); quem protege a API e o token, em api/seguranca.py.
+// Tela de entrada (Entrega 3): login com e-mail e senha e o cadastro do
+// estagiario. Ate aqui era um seletor de perfil - qualquer um entrava como
+// gestor e aprovava os proprios ajustes. Agora a conta define o perfil.
+//
+// O cadastro de gestor so aparece aqui enquanto nao existe nenhum gestor
+// (o primeiro precisa comecar); depois disso, gestor novo e cadastrado por
+// outro gestor, dentro da area dele (ContaGestor).
 export function Portal() {
-  const [perfil, setPerfil] = useState("estagiario");
-  const [cadastrando, setCadastrando] = useState(false);
-  const [busca, setBusca] = useState("");
-  const navegar = useNavigate();
-  const { escolherEstagiario, escolherGestor } = useSessao();
-
-  const estagiarios = useApiState(() => api.get("/estagiarios"));
+  const { logado, usuario, conferindo } = useSessao();
+  const [modo, setModo] = useState("entrar");
   const gestores = useApiState(() => api.get("/gestores"));
-  const atual = perfil === "estagiario" ? estagiarios : gestores;
-  const pessoas = (atual.dados || []).filter((p) => p.nome.toLowerCase().includes(busca.trim().toLowerCase()));
+  const semGestor = gestores.dados && gestores.dados.length === 0;
 
-  function entrar(pessoa) {
-    if (perfil === "estagiario") {
-      escolherEstagiario(pessoa.id);
-      navegar(`/estagiario/${pessoa.id}`);
-    } else {
-      escolherGestor(pessoa.id);
-      navegar(`/gestor/${pessoa.id}`);
-    }
-  }
-
-  function trocarPerfil(novo) {
-    setPerfil(novo);
-    setCadastrando(false);
-    setBusca("");
-  }
-
-  const equipeDe = (gestorId) => (estagiarios.dados || []).filter((e) => e.gestor_id === gestorId).length;
+  if (logado && !conferindo) return <Navigate to={areaDoUsuario(usuario)} replace />;
 
   return (
     <div className="portal">
@@ -52,75 +33,38 @@ export function Portal() {
 
         <div className="portal-caixa entra">
           <h1>Cada minuto<br />no lugar certo.</h1>
-          <p>Ponto, saldo e ajustes do estágio, com a conta feita pelo sistema. Escolha o seu perfil para entrar.</p>
+          <p>Ponto, saldo e ajustes do estágio, com a conta feita pelo sistema. Entre com a sua conta.</p>
 
           <div className="segmentado segmentado--bloco" role="tablist">
-            <button type="button" className={perfil === "estagiario" ? "ativo" : ""} onClick={() => trocarPerfil("estagiario")}>
-              <GraduationCap />Sou estagiário
+            <button type="button" className={modo === "entrar" ? "ativo" : ""} onClick={() => setModo("entrar")}>
+              <LogIn />Entrar
             </button>
-            <button type="button" className={perfil === "gestor" ? "ativo" : ""} onClick={() => trocarPerfil("gestor")}>
-              <Briefcase />Sou gestor
+            <button type="button" className={modo === "cadastro" ? "ativo" : ""} onClick={() => setModo("cadastro")}>
+              <UserPlus />Criar conta
             </button>
+            {semGestor && (
+              <button type="button" className={modo === "gestor" ? "ativo" : ""} onClick={() => setModo("gestor")}>
+                <Briefcase />Primeiro gestor
+              </button>
+            )}
           </div>
 
-          {atual.erro ? (
+          {gestores.erro ? (
             <div className="aviso aviso--alerta" style={{ marginTop: 20 }}>
               <CircleAlert />
               <div>
-                <strong>Não foi possível falar com a API.</strong> {atual.erro}
+                <strong>Não foi possível falar com a API.</strong> {gestores.erro}
                 <div style={{ marginTop: 10 }}>
-                  <button type="button" className="botao botao--pequeno" onClick={() => { estagiarios.recarregar(); gestores.recarregar(); }}>Tentar de novo</button>
+                  <button type="button" className="botao botao--pequeno" onClick={gestores.recarregar}>Tentar de novo</button>
                 </div>
               </div>
             </div>
-          ) : cadastrando ? (
-            perfil === "estagiario" ? (
-              <FormularioEstagiario
-                gestores={gestores.dados || []}
-                aoCancelar={() => setCadastrando(false)}
-                aoCriar={(novo) => { estagiarios.recarregar(); entrar(novo); }}
-              />
-            ) : (
-              <FormularioGestor aoCancelar={() => setCadastrando(false)} aoCriar={(novo) => { gestores.recarregar(); entrar(novo); }} />
-            )
+          ) : modo === "entrar" ? (
+            <FormularioLogin />
+          ) : modo === "cadastro" ? (
+            <FormularioEstagiario gestores={gestores.dados || []} />
           ) : (
-            <>
-              {(atual.dados || []).length > 4 && (
-                <div className="campo--com-icone" style={{ marginTop: 16 }}>
-                  <Search />
-                  <input className="entrada" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar pelo nome" aria-label="Buscar pelo nome" />
-                </div>
-              )}
-
-              <div className="lista-pessoas">
-                {atual.carregando && !atual.dados ? (
-                  [0, 1, 2].map((n) => <Esqueleto key={n} altura={58} style={{ borderRadius: 12 }} />)
-                ) : pessoas.length === 0 ? (
-                  <Vazio icone={perfil === "estagiario" ? GraduationCap : Briefcase} titulo={busca ? "Ninguém com esse nome" : "Ninguém cadastrado ainda"}>
-                    {busca ? "Confira a grafia ou cadastre uma pessoa nova." : "Cadastre a primeira pessoa para começar."}
-                  </Vazio>
-                ) : (
-                  pessoas.map((p, i) => (
-                    <button key={p.id} type="button" className="pessoa entra" style={{ "--i": i + 2 }} onClick={() => entrar(p)}>
-                      <Avatar nome={p.nome} tamanho={38} />
-                      <span className="pessoa-texto">
-                        <b>{p.nome}</b>
-                        <span>
-                          {perfil === "estagiario"
-                            ? `Meta de ${p.configuracao?.meta_horas_diaria ?? 6}h por dia`
-                            : `${equipeDe(p.id)} estagiário(s) na equipe`}
-                        </span>
-                      </span>
-                      <ChevronRight className="pessoa-seta" />
-                    </button>
-                  ))
-                )}
-              </div>
-
-              <button type="button" className="botao botao--primario botao--bloco botao--grande" style={{ marginTop: 14 }} onClick={() => setCadastrando(true)}>
-                <UserPlus />{perfil === "estagiario" ? "Cadastrar estagiário" : "Cadastrar gestor"}
-              </button>
-            </>
+            <FormularioGestor aoCriar={gestores.recarregar} />
           )}
         </div>
 
@@ -138,9 +82,78 @@ export function Portal() {
   );
 }
 
-function FormularioEstagiario({ gestores, aoCancelar, aoCriar }) {
+function CampoSenha({ id, valor, aoMudar, rotulo = "Senha", autoComplete = "current-password", minimo }) {
+  const [visivel, setVisivel] = useState(false);
+  return (
+    <div className="campo">
+      <label htmlFor={id}>{rotulo}</label>
+      <div className="campo-senha">
+        <input id={id} type={visivel ? "text" : "password"} value={valor} onChange={(e) => aoMudar(e.target.value)}
+          autoComplete={autoComplete} minLength={minimo} maxLength={128} required />
+        <button type="button" onClick={() => setVisivel((v) => !v)} aria-label={visivel ? "Esconder senha" : "Mostrar senha"}>
+          {visivel ? <EyeOff /> : <Eye />}
+        </button>
+      </div>
+      {minimo && <span className="dica">Pelo menos {minimo} caracteres.</span>}
+    </div>
+  );
+}
+
+// Entra e vai direto para a area do perfil da conta.
+function useEntrarENavegar() {
+  const { entrar } = useSessao();
+  const navegar = useNavigate();
+  return async (email, senha) => {
+    const usuario = await entrar(email, senha);
+    navegar(areaDoUsuario(usuario), { replace: true });
+  };
+}
+
+function FormularioLogin() {
+  const entrarENavegar = useEntrarENavegar();
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState(null);
+
+  async function enviar(e) {
+    e.preventDefault();
+    setEnviando(true);
+    setErro(null);
+    try {
+      await entrarENavegar(email.trim(), senha);
+    } catch (e2) {
+      setErro(e2.message);
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <form className="pilha entra" style={{ gap: 14, marginTop: 20 }} onSubmit={enviar}>
+      <div className="campo">
+        <label htmlFor="login-email">E-mail</label>
+        <input id="login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+          autoComplete="username" placeholder="voce@empresa.com" autoFocus required />
+      </div>
+      <CampoSenha id="login-senha" valor={senha} aoMudar={setSenha} />
+      {erro && <div className="aviso aviso--alerta"><CircleAlert />{erro}</div>}
+      <button type="submit" className="botao botao--primario botao--bloco botao--grande" disabled={enviando}>
+        {enviando ? <LoaderCircle className="girando" /> : <LogIn />}{enviando ? "Entrando…" : "Entrar"}
+      </button>
+      <p className="portal-nota">
+        Primeira vez? Rode <code>python popular_demo.py</code> na raiz do projeto: ele cria as contas de exemplo
+        (estão no README).
+      </p>
+    </form>
+  );
+}
+
+function FormularioEstagiario({ gestores }) {
   const notificar = useNotificar();
+  const entrarENavegar = useEntrarENavegar();
   const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
   const [metaDiaria, setMetaDiaria] = useState(6);
   const [metaSemanal, setMetaSemanal] = useState(30);
   const [gestorId, setGestorId] = useState(gestores[0]?.id ?? "");
@@ -154,25 +167,32 @@ function FormularioEstagiario({ gestores, aoCancelar, aoCriar }) {
     try {
       const novo = await api.post("/estagiarios", {
         nome: nome.trim(),
+        email: email.trim(),
+        senha,
         meta_horas_diaria: Number(metaDiaria),
         meta_horas_semanal: Number(metaSemanal),
         gestor_id: gestorId ? Number(gestorId) : null,
       });
-      notificar.sucesso("Cadastro feito", `Bem-vindo, ${novo.nome}.`);
-      aoCriar(novo);
+      notificar.sucesso("Conta criada", `Bem-vindo, ${novo.nome}.`);
+      await entrarENavegar(email.trim(), senha);
     } catch (e2) {
       setErro(e2.message);
-    } finally {
       setEnviando(false);
     }
   }
 
   return (
     <form className="pilha entra" style={{ gap: 14, marginTop: 20 }} onSubmit={enviar}>
-      <CabecalhoForm titulo="Novo estagiário" aoCancelar={aoCancelar} />
       <div className="campo">
         <label htmlFor="novo-nome">Nome completo</label>
         <input id="novo-nome" value={nome} onChange={(e) => setNome(e.target.value)} minLength={2} maxLength={120} placeholder="Ana Paula Ribeiro" autoFocus required />
+      </div>
+      <div className="grade-campos" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <div className="campo">
+          <label htmlFor="novo-email">E-mail</label>
+          <input id="novo-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required />
+        </div>
+        <CampoSenha id="novo-senha" valor={senha} aoMudar={setSenha} autoComplete="new-password" minimo={8} />
       </div>
       <div className="grade-campos" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <div className="campo">
@@ -190,18 +210,22 @@ function FormularioEstagiario({ gestores, aoCancelar, aoCriar }) {
           <option value="">Sem gestor por enquanto</option>
           {gestores.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
         </select>
+        <span className="dica">Depois do cadastro, só o gestor muda a meta e o vínculo.</span>
       </div>
       {erro && <div className="aviso aviso--alerta"><CircleAlert />{erro}</div>}
       <button type="submit" className="botao botao--primario" disabled={enviando}>
-        {enviando ? <LoaderCircle className="girando" /> : <UserPlus />}{enviando ? "Cadastrando…" : "Cadastrar e entrar"}
+        {enviando ? <LoaderCircle className="girando" /> : <UserPlus />}{enviando ? "Criando conta…" : "Criar conta e entrar"}
       </button>
     </form>
   );
 }
 
-function FormularioGestor({ aoCancelar, aoCriar }) {
+function FormularioGestor({ aoCriar }) {
   const notificar = useNotificar();
+  const entrarENavegar = useEntrarENavegar();
   const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState(null);
 
@@ -210,36 +234,32 @@ function FormularioGestor({ aoCancelar, aoCriar }) {
     setEnviando(true);
     setErro(null);
     try {
-      const novo = await api.post("/gestores", { nome: nome.trim() });
-      notificar.sucesso("Cadastro feito", `Bem-vindo, ${novo.nome}.`);
-      aoCriar(novo);
+      const novo = await api.post("/gestores", { nome: nome.trim(), email: email.trim(), senha });
+      notificar.sucesso("Conta criada", `Bem-vindo, ${novo.nome}.`);
+      aoCriar();
+      await entrarENavegar(email.trim(), senha);
     } catch (e2) {
       setErro(e2.message);
-    } finally {
       setEnviando(false);
     }
   }
 
   return (
     <form className="pilha entra" style={{ gap: 14, marginTop: 20 }} onSubmit={enviar}>
-      <CabecalhoForm titulo="Novo gestor" aoCancelar={aoCancelar} />
+      <div className="aviso"><Briefcase />Ainda não existe nenhum gestor. O primeiro se cadastra aqui; os próximos são cadastrados por um gestor, dentro do sistema.</div>
       <div className="campo">
         <label htmlFor="gestor-nome">Nome completo</label>
         <input id="gestor-nome" value={nome} onChange={(e) => setNome(e.target.value)} minLength={2} maxLength={120} placeholder="Marcos Albuquerque" autoFocus required />
       </div>
+      <div className="campo">
+        <label htmlFor="gestor-email">E-mail</label>
+        <input id="gestor-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required />
+      </div>
+      <CampoSenha id="gestor-senha" valor={senha} aoMudar={setSenha} autoComplete="new-password" minimo={8} />
       {erro && <div className="aviso aviso--alerta"><CircleAlert />{erro}</div>}
       <button type="submit" className="botao botao--primario" disabled={enviando}>
-        {enviando ? <LoaderCircle className="girando" /> : <UserPlus />}{enviando ? "Cadastrando…" : "Cadastrar e entrar"}
+        {enviando ? <LoaderCircle className="girando" /> : <UserPlus />}{enviando ? "Criando conta…" : "Criar conta de gestor"}
       </button>
     </form>
-  );
-}
-
-function CabecalhoForm({ titulo, aoCancelar }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-      <h3>{titulo}</h3>
-      <button type="button" className="botao botao--fantasma botao--pequeno" onClick={aoCancelar}><X />Voltar</button>
-    </div>
   );
 }

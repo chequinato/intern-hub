@@ -5,6 +5,10 @@ Modulo dono: Gustavo Legieri (Desenvolvedor 2 - secao 3.2).
 Segue o molde da fundacao (api/rotas/estagiarios.py): APIRouter com prefix,
 sessao via Depends(get_session), schema Pydantic na entrada, commit dentro de
 try com rollback no except, e status code explicito.
+
+Entrega 3 (login, Miguel): registrar o ponto e so do proprio estagiario; o
+historico pode ser visto por ele e pelo gestor responsavel
+(api/permissoes.py).
 """
 
 from datetime import date, timedelta
@@ -13,13 +17,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from api.permissoes import exigir_o_proprio_estagiario, exigir_ver_estagiario, usuario_logado
 from api.schemas import RegistroCreate, RegistroResponse
 from banco.conexao import get_session
-from modelos import Configuracao, Estagiario, RegistroPonto
+from modelos import Configuracao, RegistroPonto, Usuario
 from modelos.configuracao import (
     LIMITE_MAXIMO_DIARIO_PADRAO,
     LIMITE_MAXIMO_SEMANAL_PADRAO,
 )
+from servicos.agenda import FATOR_META_DIA_DE_PROVA, datas_de_prova
 from servicos.calculo import (
     calcular_horas_trabalhadas,
     verificar_limite_legal,
@@ -100,6 +106,10 @@ def _montar_resposta(registro: RegistroPonto, session: Session) -> RegistroRespo
         if configuracao is not None
         else LIMITE_MAXIMO_SEMANAL_PADRAO
     )
+    # Entrega 3: em dia de prova a carga horaria cai pela metade (Lei
+    # 11.788/2008, art. 10), entao o teto do dia cai junto.
+    if registro.data in datas_de_prova(registro.estagiario_id, session, registro.data, registro.data):
+        limite_diario = limite_diario * FATOR_META_DIA_DE_PROVA
     aviso_limite = verificar_limite_legal(
         horas, _horas_da_semana(registro, session), limite_diario, limite_semanal
     )
@@ -126,21 +136,16 @@ def _montar_resposta(registro: RegistroPonto, session: Session) -> RegistroRespo
     summary="Registra o ponto de um dia",
 )
 def criar_registro(
-    dados: RegistroCreate, session: Session = Depends(get_session)
+    dados: RegistroCreate,
+    usuario: Usuario = Depends(usuario_logado),
+    session: Session = Depends(get_session),
 ) -> RegistroResponse:
     """Salva o ponto do dia e devolve o registro ja com horas e pendencia.
 
     Um dia com almoco incompleto NAO e recusado: ele e salvo e volta com
     pendencia=True e um aviso, como manda o README (secao 7).
     """
-    estagiario = (
-        session.query(Estagiario).filter_by(id=dados.estagiario_id).first()
-    )
-    if estagiario is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Estagiario {dados.estagiario_id} nao encontrado.",
-        )
+    exigir_o_proprio_estagiario(dados.estagiario_id, usuario, session)
 
     ja_existe = (
         session.query(RegistroPonto)
@@ -183,6 +188,7 @@ def criar_registro(
 )
 def listar_registros(
     estagiario_id: int,
+    usuario: Usuario = Depends(usuario_logado),
     session: Session = Depends(get_session),
     inicio: date | None = Query(
         default=None, description="Filtra registros a partir desta data (inclusive)."
@@ -192,12 +198,7 @@ def listar_registros(
     ),
 ) -> list[RegistroResponse]:
     """Historico em ordem cronologica, com filtro opcional por periodo."""
-    estagiario = session.query(Estagiario).filter_by(id=estagiario_id).first()
-    if estagiario is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Estagiario {estagiario_id} nao encontrado.",
-        )
+    exigir_ver_estagiario(estagiario_id, usuario, session)
 
     consulta = session.query(RegistroPonto).filter_by(estagiario_id=estagiario_id)
     if inicio is not None:

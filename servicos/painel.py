@@ -9,6 +9,10 @@ requisicoes para montar o mesmo resumo; agora e uma.
 
 Recursos do SQLAlchemy usados aqui: query().filter(), filter_by(),
 order_by(), limit(), func.count(), e as consultas dos servicos chamados.
+
+Entrega 3 (segunda parte): o painel do estagiario ganhou a agenda do dia
+(com a meta reduzida em dia de prova) e os chamados em aberto; o do gestor
+ganhou a contagem de chamados da equipe.
 """
 
 from datetime import date, timedelta
@@ -25,7 +29,9 @@ from modelos.configuracao import (
     META_HORAS_SEMANAL_PADRAO,
 )
 from modelos.solicitacao_ajuste import STATUS_PENDENTE
+from servicos.agenda import datas_de_prova, listar_compromissos, meta_do_dia
 from servicos.calculo import calcular_horas_trabalhadas, verificar_pendencia_almoco
+from servicos.chamados import contagem_por_status
 from servicos.ponto import proxima_marcacao
 from servicos.saldo import calcular_saldo_acumulado, saldo_por_mes, verificar_alerta
 from servicos.vencimento import verificar_vencimento
@@ -124,11 +130,21 @@ def resumo_estagiario(estagiario: Estagiario, hoje: date, session: Session) -> d
         .all()
     )
 
+    dia_de_prova = hoje in datas_de_prova(estagiario.id, session, hoje, hoje)
+    chamados = contagem_por_status(session, estagiario_id=estagiario.id)
+
     return {
         "estagiario_id": estagiario.id,
         "nome": estagiario.nome,
         "hoje": hoje,
         **config,
+        "dia_de_prova_hoje": dia_de_prova,
+        "meta_hoje": meta_do_dia(config["meta_horas_diaria"], hoje, {hoje} if dia_de_prova else set()),
+        "compromissos_hoje": listar_compromissos(estagiario.id, session, hoje, hoje),
+        "proximos_compromissos": listar_compromissos(
+            estagiario.id, session, hoje + timedelta(days=1), hoje + timedelta(days=14)
+        )[:5],
+        "chamados_em_aberto": chamados["aberto"] + chamados["em_andamento"],
         "saldo_acumulado": saldo,
         "em_alerta": verificar_alerta(saldo, config["limite_alerta"]),
         "horas_semana": horas_da_semana(estagiario.id, hoje, session),
@@ -197,9 +213,13 @@ def resumo_equipe(gestor_id: int, hoje: date, session: Session) -> dict:
             "ultimo_ponto": ultimo,
         })
 
+    chamados = contagem_por_status(session, gestor_id=gestor_id)
+
     return {
         "gestor_id": gestor_id,
         "hoje": hoje,
+        "chamados_sem_resposta": chamados["aberto"],
+        "chamados_em_andamento": chamados["em_andamento"],
         "total_estagiarios": len(linhas),
         "em_alerta": sum(1 for l in linhas if l["em_alerta"]),
         "acima_limite_semanal": sum(1 for l in linhas if l["acima_limite_semanal"]),

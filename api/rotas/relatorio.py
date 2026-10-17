@@ -9,6 +9,9 @@ servicos/calculo.py, saldo em servicos/saldo.py, vencimento em
 servicos/vencimento.py, dia util em servicos/feriados.py) e acrescenta a
 conta propria dele: as faltas do mes.
 
+Entrega 3 (login, Miguel): o relatorio abre para o proprio estagiario e
+para o gestor dele (api/permissoes.py).
+
 Recursos do SQLAlchemy usados aqui: extract("month"/"year") para filtrar o
 mes, func.min() para achar o primeiro ponto do estagiario, filter(),
 filter_by() e order_by().
@@ -22,10 +25,13 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import extract, func
 from sqlalchemy.orm import Session
 
+from api.permissoes import exigir_ver_estagiario, usuario_logado
 from api.schemas import RelatorioMensalResponse, TendenciaMes
 from banco.conexao import get_session
 from modelos.configuracao import META_HORAS_DIARIA_PADRAO, Configuracao
 from modelos.registro_ponto import RegistroPonto
+from modelos.usuario import Usuario
+from servicos.agenda import datas_de_prova, meta_do_dia
 from servicos.calculo import calcular_horas_trabalhadas
 from servicos.exportar_relatorio import gerar_relatorio_excel, gerar_relatorio_pdf
 from servicos.feriados import eh_dia_util
@@ -40,13 +46,18 @@ router = APIRouter(prefix="/relatorio", tags=["Relatório"])
     response_model=list[TendenciaMes],
     summary="Saldo mes a mes (tendencia do semestre, funcionalidade 19)",
 )
-def obter_tendencia(estagiario_id: int, session: Session = Depends(get_session)) -> list[dict]:
+def obter_tendencia(
+    estagiario_id: int,
+    usuario: Usuario = Depends(usuario_logado),
+    session: Session = Depends(get_session),
+) -> list[dict]:
     """Acrescentada na Entrega 3 (Miguel). A conta, com group_by() no banco,
     mora em servicos/saldo.py (saldo_por_mes).
 
     Declarada antes de /{estagiario_id} por clareza - as duas nao conflitam,
     porque esta tem um pedaco a mais no caminho.
     """
+    exigir_ver_estagiario(estagiario_id, usuario, session)
     return saldo_por_mes(estagiario_id, session)
 
 
@@ -56,9 +67,14 @@ def obter_tendencia(estagiario_id: int, session: Session = Depends(get_session))
     summary="Resumo do mes: horas, faltas, saldo e evolucao dia a dia",
 )
 def obter_relatorio(
-    estagiario_id: int, mes: int, ano: int, session: Session = Depends(get_session)
+    estagiario_id: int,
+    mes: int,
+    ano: int,
+    usuario: Usuario = Depends(usuario_logado),
+    session: Session = Depends(get_session),
 ) -> dict:
     """Monta o relatorio de um mes em quatro passos (comentados abaixo)."""
+    exigir_ver_estagiario(estagiario_id, usuario, session)
     # 1. Os registros de ponto do mes, em ordem de data.
     registros_mes = (
         session.query(RegistroPonto)
@@ -82,7 +98,11 @@ def obter_relatorio(
         else META_HORAS_DIARIA_PADRAO
     )
 
-    # 2. Horas de cada dia e o saldo do dia (horas - meta).
+    # 2. Horas de cada dia e o saldo do dia (horas - meta). Entrega 3: em dia
+    # de prova a meta e a metade (Lei 11.788/2008, servicos/agenda.py).
+    primeiro_do_mes = date(ano, mes, 1)
+    ultimo_do_mes = date(ano, mes, calendar.monthrange(ano, mes)[1])
+    provas = datas_de_prova(estagiario_id, session, primeiro_do_mes, ultimo_do_mes)
     total_horas = 0.0
     evolucao = []
     for registro in registros_mes:
@@ -93,7 +113,8 @@ def obter_relatorio(
         evolucao.append({
             "data": registro.data,
             "horas_trabalhadas": horas_dia,
-            "saldo_do_dia": round(horas_dia - meta_diaria, 2),
+            "saldo_do_dia": round(horas_dia - meta_do_dia(meta_diaria, registro.data, provas), 2),
+            "dia_de_prova": registro.data in provas,
         })
 
     # 3. Faltas: dia util (sem fim de semana e sem feriado), ja passado, sem
@@ -142,6 +163,7 @@ def obter_relatorio(
         "saldo_acumulado": saldo_atual,
         "aviso_vencimento": aviso,
         "evolucao_diaria": evolucao,
+        "datas_provas": sorted(provas),
     }
 
 
@@ -156,6 +178,7 @@ def exportar_relatorio(
     formato: Literal["pdf", "excel"] = Query(
         ..., description="Formato do arquivo: pdf ou excel"
     ),
+    usuario: Usuario = Depends(usuario_logado),
     session: Session = Depends(get_session),
 ) -> Response:
     """Reaproveita obter_relatorio (mesma função, chamada direto - nao via
@@ -165,7 +188,7 @@ def exportar_relatorio(
     Sem response_model de proposito, igual a rota de PDF de solicitacoes:
     o retorno aqui e o arquivo bruto, nao um schema Pydantic.
     """
-    dados_mes = obter_relatorio(estagiario_id, mes, ano, session)
+    dados_mes = obter_relatorio(estagiario_id, mes, ano, usuario, session)
 
     if formato == "pdf":
         conteudo = gerar_relatorio_pdf(dados_mes)

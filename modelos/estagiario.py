@@ -48,5 +48,27 @@ class Estagiario(Base):
         order_by="SolicitacaoAjuste.data_solicitacao",
     )
 
+    # Entrega 3 (Miguel): conta de acesso, chamados, agenda e cracha. Todos
+    # com cascade pelo mesmo motivo das solicitacoes: apagar o estagiario
+    # nao pode deixar linha orfa apontando para ele.
+    usuario = relationship(
+        "Usuario", back_populates="estagiario", uselist=False, cascade="all, delete-orphan"
+    )
+    chamados = relationship(
+        "Chamado",
+        back_populates="estagiario",
+        cascade="all, delete-orphan",
+        order_by="Chamado.aberto_em.desc()",
+    )
+    compromissos = relationship(
+        "Compromisso",
+        back_populates="estagiario",
+        cascade="all, delete-orphan",
+        order_by="Compromisso.data",
+    )
+    cracha = relationship(
+        "Cracha", back_populates="estagiario", uselist=False, cascade="all, delete-orphan"
+    )
+
     def __repr__(self) -> str:
         return f"<Estagiario id={self.id} nome={self.nome!r}>"

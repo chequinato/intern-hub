@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import {
-  Calculator, ChartColumnBig, Clock, FileText, LayoutDashboard, MessageCircle, Settings,
+  CalendarDays, Calculator, ChartColumnBig, Clock, FileText, IdCard, LayoutDashboard, LifeBuoy,
+  MessageCircle, Settings,
 } from "lucide-react";
 import { api } from "../api/cliente";
 import { useApiState } from "../useApiState";
@@ -29,11 +30,14 @@ export function EstagiarioArea() {
   const itens = [
     { rota: "", rotulo: "Início", titulo: "Painel", icone: LayoutDashboard, grupo: "Visão geral" },
     { rota: "ponto", rotulo: "Ponto", titulo: "Registro de ponto", icone: Clock, grupo: "Dia a dia" },
+    { rota: "agenda", rotulo: "Agenda", titulo: "Agenda e provas", icone: CalendarDays, grupo: "Dia a dia" },
     { rota: "solicitacoes", rotulo: "Solicitações", titulo: "Pedidos de ajuste", icone: FileText, grupo: "Dia a dia", contador: pendenciasSemPedido },
+    { rota: "chamados", rotulo: "Chamados", titulo: "Chamados ao gestor", icone: LifeBuoy, grupo: "Dia a dia", contador: painel.dados?.chamados_em_aberto },
     { rota: "relatorio", rotulo: "Relatório", titulo: "Relatório mensal", icone: ChartColumnBig, grupo: "Análise" },
     { rota: "simulacao", rotulo: "Simulação", titulo: "Simulador de cenários", icone: Calculator, grupo: "Análise" },
     { rota: "assistente", rotulo: "Assistente", titulo: "Assistente de IA", icone: MessageCircle, grupo: "Análise" },
-    { rota: "configuracoes", rotulo: "Configurações", titulo: "Meta e limites", icone: Settings, grupo: "Conta" },
+    { rota: "cracha", rotulo: "Crachá", titulo: "Crachá virtual", icone: IdCard, grupo: "Conta" },
+    { rota: "configuracoes", rotulo: "Configurações", titulo: "Meta, limites e senha", icone: Settings, grupo: "Conta" },
   ];
 
   const contexto = {

@@ -129,6 +129,7 @@ export function Relatorio() {
                   mes={periodo.mes}
                   evolucao={dados.evolucao_diaria}
                   faltas={dados.datas_faltas || []}
+                  provas={dados.datas_provas || []}
                   feriados={feriados.dados || []}
                 />
               </div>
@@ -191,9 +192,11 @@ function GraficoDoMes({ evolucao }) {
   );
 }
 
-function Calendario({ ano, mes, evolucao, faltas, feriados }) {
+function Calendario({ ano, mes, evolucao, faltas, feriados, provas = [] }) {
   const trabalhados = new Map(evolucao.map((d) => [d.data, d]));
   const listaFaltas = new Set(faltas);
+  // Entrega 3: dia de prova (meta pela metade) ganha a marca "P" no canto.
+  const diasDeProva = new Set(provas);
   const nomesFeriados = new Map(feriados.map((f) => [f.data, f.descricao]));
   const hojeTexto = hojeIso();
   const totalDias = new Date(ano, mes, 0).getDate();
@@ -221,8 +224,10 @@ function Calendario({ ano, mes, evolucao, faltas, feriados }) {
     } else if (iso > hojeTexto) {
       tipo = "futuro";
     }
+    const prova = diasDeProva.has(iso);
+    if (prova) dica = `Prova: meta pela metade${dica ? ` · ${dica}` : ""}`;
     celulas.push(
-      <div key={iso} className={`cal-dia cal-dia--${tipo}${iso === hojeTexto ? " cal-dia--hoje" : ""}`} title={dica} style={{ "--i": dia }}>
+      <div key={iso} className={`cal-dia cal-dia--${tipo}${iso === hojeTexto ? " cal-dia--hoje" : ""}${prova ? " cal-dia--prova" : ""}`} title={dica} style={{ "--i": dia }}>
         <span>{dia}</span>
         {trabalhados.has(iso) && <small>{formatarHoras(trabalhados.get(iso).horas_trabalhadas)}</small>}
       </div>
@@ -240,6 +245,7 @@ function Calendario({ ano, mes, evolucao, faltas, feriados }) {
         <span><i className="cal-legenda cal-dia--curto" />Abaixo da meta</span>
         <span><i className="cal-legenda cal-dia--falta" />Falta</span>
         <span><i className="cal-legenda cal-dia--feriado" />Feriado</span>
+        <span><b className="cal-marca-prova">P</b>Dia de prova (meta pela metade)</span>
       </div>
     </>
   );

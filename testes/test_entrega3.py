@@ -8,6 +8,9 @@ A hora e o dia do servidor sao fixados com monkeypatch nas funcoes _agora()
 e _hoje() das rotas - sem isso, o resultado dependeria do relogio de quem
 roda o teste.
 
+Desde o login, os testes entram com a conta certa antes de agir (ajudantes
+de testes/conftest.py).
+
 Rodar com:
     pytest testes/test_entrega3.py -v
 """
@@ -16,6 +19,7 @@ from datetime import date, datetime
 
 import api.rotas.painel as rota_painel
 import api.rotas.ponto as rota_ponto
+from testes.conftest import entrar, novo_estagiario, novo_gestor
 
 
 def _relogio(monkeypatch, texto):
@@ -25,7 +29,8 @@ def _relogio(monkeypatch, texto):
 
 
 def _estagiario(cliente, nome="Lucas", gestor_id=None):
-    return cliente.post("/estagiarios", json={"nome": nome, "gestor_id": gestor_id}).json()
+    """Cadastra o estagiario e deixa o cliente logado como ele."""
+    return novo_estagiario(cliente, nome, gestor_id)
 
 
 def _dia(cliente, estagiario_id, data, saida="16:00", almoco=True):
@@ -101,11 +106,16 @@ def test_ponto_rapido_no_mesmo_minuto_da_entrada_e_recusado(cliente, monkeypatch
 
 
 def test_alterar_meta_muda_o_saldo_na_hora(cliente):
-    """Com meta de 6h, um dia de 6h da saldo zero; com meta de 5h, +1h."""
-    estagiario = _estagiario(cliente)
+    """Com meta de 6h, um dia de 6h da saldo zero; com meta de 5h, +1h.
+
+    Quem muda a meta e a gestora - o estagiario recebe 403 (ver
+    test_login.py)."""
+    gestor = novo_gestor(cliente)
+    estagiario = _estagiario(cliente, gestor_id=gestor["id"])
     _dia(cliente, estagiario["id"], "2026-10-12")
     assert cliente.get(f"/saldo/{estagiario['id']}").json()["saldo_acumulado"] == 0.0
 
+    entrar(cliente, "carla@teste.dev")
     resposta = cliente.patch(
         f"/estagiarios/{estagiario['id']}/configuracao", json={"meta_horas_diaria": 5}
     )
@@ -117,7 +127,9 @@ def test_alterar_meta_muda_o_saldo_na_hora(cliente):
 
 
 def test_configuracao_recusa_meta_negativa_com_422(cliente):
-    estagiario = _estagiario(cliente)
+    gestor = novo_gestor(cliente)
+    estagiario = _estagiario(cliente, gestor_id=gestor["id"])
+    entrar(cliente, "carla@teste.dev")
     resposta = cliente.patch(
         f"/estagiarios/{estagiario['id']}/configuracao", json={"meta_horas_diaria": -2}
     )
@@ -163,13 +175,14 @@ def test_painel_do_estagiario_mostra_semana_e_pendencias(cliente, monkeypatch):
 def test_painel_do_gestor_mostra_quem_esta_em_alerta(cliente, monkeypatch):
     """Beatriz com -6h (alerta em -5h) e Lucas com saldo zero."""
     monkeypatch.setattr(rota_painel, "_hoje", lambda: date(2026, 10, 14))
-    gestor = cliente.post("/gestores", json={"nome": "Carla"}).json()
+    gestor = novo_gestor(cliente)
     lucas = _estagiario(cliente, "Lucas", gestor["id"])
-    beatriz = _estagiario(cliente, "Beatriz", gestor["id"])
     _dia(cliente, lucas["id"], "2026-10-12")
+    beatriz = _estagiario(cliente, "Beatriz", gestor["id"])
     for dia in ("2026-10-05", "2026-10-06", "2026-10-07"):
         _dia(cliente, beatriz["id"], dia, saida="14:00")  # 4h por dia: -2h cada
 
+    entrar(cliente, "carla@teste.dev")
     painel = cliente.get(f"/painel/gestor/{gestor['id']}").json()
     assert painel["total_estagiarios"] == 2
     assert painel["em_alerta"] == 1
@@ -183,6 +196,7 @@ def test_painel_do_gestor_mostra_quem_esta_em_alerta(cliente, monkeypatch):
 
 
 def test_remover_feriado_devolve_204_e_some_da_lista(cliente):
+    novo_gestor(cliente)
     feriado = cliente.post("/feriados", json={"data": "2026-10-12", "descricao": "Nossa Senhora"}).json()
     assert cliente.delete(f"/feriados/{feriado['id']}").status_code == 204
     assert cliente.get("/feriados").json() == []

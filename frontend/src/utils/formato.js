@@ -133,3 +133,63 @@ export function corDoAvatar(nome = "") {
 export function plural(n, singular, pluralTexto) {
   return `${n} ${n === 1 ? singular : pluralTexto}`;
 }
+
+// --- Entrega 3: chamados, agenda e cracha -----------------------------------
+
+export const NOMES_CATEGORIA = {
+  acesso: "Acesso e senhas",
+  equipamento: "Equipamento",
+  sistema: "Sistema fora do ar",
+  documentacao: "Documentação",
+  outro: "Outro assunto",
+};
+
+export const NOMES_PRIORIDADE = { baixa: "Baixa", media: "Média", alta: "Alta" };
+
+export const NOMES_STATUS_CHAMADO = { aberto: "Aberto", em_andamento: "Em andamento", resolvido: "Resolvido" };
+
+export const NOMES_TIPO_COMPROMISSO = {
+  prova: "Prova",
+  aula: "Aula",
+  reuniao: "Reunião",
+  entrega: "Entrega",
+  outro: "Outro",
+};
+
+// Link "adicionar ao Google Agenda": o endereco publico do proprio Google
+// que abre o evento ja preenchido, sem precisar de login no InternHub nem de
+// chave de API. Sem horario, vira evento de dia inteiro.
+export function linkGoogleAgenda(c) {
+  const dia = c.data.replaceAll("-", "");
+  let datas;
+  if (c.inicio) {
+    const ini = `${dia}T${c.inicio.slice(0, 5).replace(":", "")}00`;
+    const fim = `${dia}T${(c.fim || c.inicio).slice(0, 5).replace(":", "")}00`;
+    datas = `${ini}/${fim}`;
+  } else {
+    const seguinte = paraData(c.data);
+    seguinte.setDate(seguinte.getDate() + 1);
+    const prox = `${seguinte.getFullYear()}${String(seguinte.getMonth() + 1).padStart(2, "0")}${String(seguinte.getDate()).padStart(2, "0")}`;
+    datas = `${dia}/${prox}`;
+  }
+  const parametros = new URLSearchParams({
+    action: "TEMPLATE",
+    text: c.tipo === "prova" ? `[Prova] ${c.titulo}` : c.titulo,
+    dates: datas,
+    ctz: "America/Sao_Paulo",
+  });
+  if (c.local) parametros.set("location", c.local);
+  if (c.observacao) parametros.set("details", c.observacao);
+  return `https://calendar.google.com/calendar/render?${parametros.toString()}`;
+}
+
+// "ha 3 h", "ha 2 dias" - para a lista de chamados.
+export function haQuantoTempo(texto) {
+  const minutos = Math.max(0, Math.round((Date.now() - new Date(texto).getTime()) / 60000));
+  if (minutos < 1) return "agora";
+  if (minutos < 60) return `há ${minutos} min`;
+  const horas = Math.round(minutos / 60);
+  if (horas < 24) return `há ${horas} h`;
+  const dias = Math.round(horas / 24);
+  return `há ${dias} ${dias === 1 ? "dia" : "dias"}`;
+}

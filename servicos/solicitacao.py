@@ -135,14 +135,20 @@ def listar_solicitacoes(
     session: Session,
     estagiario_id: int | None = None,
     status: str | None = None,
+    gestor_id: int | None = None,
 ) -> list[SolicitacaoAjuste]:
     """Historico completo - e a consulta que sustenta a tela de auditoria.
 
-    Sem filtro nenhum devolve tudo (visao do gestor). Com estagiario_id
-    devolve so os pedidos daquela pessoa (visao do estagiario na tela dele).
-    Mais recentes primeiro, que e a ordem que a auditoria pede.
+    Com gestor_id devolve os pedidos da equipe daquele gestor (visao do
+    gestor - mesmo join de listar_pendentes). Com estagiario_id devolve so
+    os pedidos daquela pessoa (visao do estagiario na tela dele). Mais
+    recentes primeiro, que e a ordem que a auditoria pede.
     """
     consulta = session.query(SolicitacaoAjuste)
+    if gestor_id is not None:
+        consulta = consulta.join(
+            Estagiario, SolicitacaoAjuste.estagiario_id == Estagiario.id
+        ).filter(Estagiario.gestor_id == gestor_id)
     if estagiario_id is not None:
         consulta = consulta.filter(SolicitacaoAjuste.estagiario_id == estagiario_id)
     if status is not None:

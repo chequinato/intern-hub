@@ -10,20 +10,25 @@ banco (app.dependency_overrides) - o fixture `cliente` mora em
 testes/conftest.py e e compartilhado com testes/test_entrega3.py. Assim os testes nao apagam nem sujam os
 dados de quem esta rodando o sistema.
 
+Desde o login (Entrega 3), cada teste cadastra as pessoas e entra com a
+conta certa antes de agir (ajudantes novo_gestor/novo_estagiario/entrar,
+em testes/conftest.py): o estagiario registra o ponto e pede o ajuste, o
+gestor decide.
+
 Rodar com:
     pytest testes/test_api.py -v
 """
 
 import api.seguranca as seguranca
 from api.app_api import app
-from api.seguranca import verificar_token
+from api.seguranca import verificar_chave_api
+from testes.conftest import entrar, novo_estagiario, novo_gestor
 
 
 def _criar_estagiario_com_gestor(cliente):
-    gestor = cliente.post("/gestores", json={"nome": "Carla"}).json()
-    estagiario = cliente.post(
-        "/estagiarios", json={"nome": "Lucas", "gestor_id": gestor["id"]}
-    ).json()
+    """Carla (gestora) e Lucas (na equipe dela). Termina logado como Lucas."""
+    gestor = novo_gestor(cliente, "Carla")
+    estagiario = novo_estagiario(cliente, "Lucas", gestor["id"])
     return gestor, estagiario
 
 
@@ -77,6 +82,7 @@ def test_ajuste_aprovado_corrige_registro_e_saldo(cliente):
     })
     assert pedido.status_code == 201
 
+    entrar(cliente, "carla@teste.dev")
     fila = cliente.get("/solicitacoes/pendentes", params={"gestor_id": gestor["id"]})
     assert len(fila.json()) == 1
 
@@ -113,6 +119,7 @@ def test_relatorio_nao_conta_falta_antes_do_primeiro_ponto(cliente):
 
 
 def test_feriado_repetido_devolve_409(cliente):
+    novo_gestor(cliente)
     cliente.post("/feriados", json={"data": "2026-09-07", "descricao": "Independencia"})
     repetido = cliente.post("/feriados", json={"data": "2026-09-07", "descricao": "De novo"})
     assert repetido.status_code == 409
@@ -129,14 +136,16 @@ def test_exportacao_do_relatorio_gera_pdf_e_excel(cliente):
         assert tipo in resposta.headers["content-type"]
 
 
-def test_rota_protegida_sem_token_devolve_401(cliente, monkeypatch):
-    """Com API_TOKEN configurado, chamar sem o header certo da 401."""
-    app.dependency_overrides.pop(verificar_token)
+def test_chave_da_api_errada_devolve_401(cliente, monkeypatch):
+    """Com API_TOKEN configurado, chamar sem o header X-API-Key certo da 401
+    - mesmo numa rota que nao pede login, como a lista de gestores."""
+    app.dependency_overrides.pop(verificar_chave_api)
     monkeypatch.setattr(seguranca, "TOKEN_ESPERADO", "segredo-de-teste")
 
-    assert cliente.get("/estagiarios").status_code == 401
+    assert cliente.get("/gestores").status_code == 401
+    assert cliente.get("/gestores", headers={"X-API-Key": "outro"}).status_code == 401
     assert cliente.get(
-        "/estagiarios", headers={"Authorization": "Bearer segredo-de-teste"}
+        "/gestores", headers={"X-API-Key": "segredo-de-teste"}
     ).status_code == 200
 
 

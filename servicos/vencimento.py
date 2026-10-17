@@ -23,6 +23,7 @@ from modelos.configuracao import (
     Configuracao,
 )
 from modelos.registro_ponto import RegistroPonto
+from servicos.agenda import datas_de_prova, meta_do_dia
 from servicos.calculo import calcular_horas_trabalhadas
 
 
@@ -53,6 +54,8 @@ def verificar_vencimento(estagiario_id: int, session: Session) -> str | None:
     if not registros_antigos:
         return None
 
+    # Entrega 3: dia de prova cobra so metade da meta (servicos/agenda.py).
+    provas = datas_de_prova(estagiario_id, session, fim=data_limite)
     saldo_antigo = 0.0
     for registro in registros_antigos:
         horas = calcular_horas_trabalhadas(
@@ -61,7 +64,7 @@ def verificar_vencimento(estagiario_id: int, session: Session) -> str | None:
             registro.saida_almoco,
             registro.retorno_almoco,
         )
-        saldo_antigo += horas - meta_diaria
+        saldo_antigo += horas - meta_do_dia(meta_diaria, registro.data, provas)
 
     if saldo_antigo <= 0:
         return None

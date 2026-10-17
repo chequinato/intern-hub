@@ -17,12 +17,23 @@ Rotas:
     GET    /solicitacoes/pendentes   fila do gestor
     PATCH  /solicitacoes/{id}        gestor aprova ou rejeita
     GET    /solicitacoes/{id}/pdf    comprovante em PDF (funcionalidade 18)
+
+Entrega 3 (login, Miguel): quem pede e o dono do registro, logado; quem
+decide e o gestor logado, e o gestor_id do payload precisa ser o dele (antes,
+qualquer um mandava o id de qualquer gestor). O historico do estagiario so
+mostra os pedidos dele; o do gestor, os da equipe dele.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from api.permissoes import (
+    exigir_o_proprio_gestor,
+    exigir_ver_estagiario,
+    pode_ver_estagiario,
+    usuario_logado,
+)
 from api.schemas import (
     SolicitacaoCreate,
     SolicitacaoDecisao,
@@ -30,8 +41,9 @@ from api.schemas import (
     SolicitacaoResponse,
 )
 from banco.conexao import get_session
-from modelos import Gestor, SolicitacaoAjuste
+from modelos import RegistroPonto, SolicitacaoAjuste, Usuario
 from modelos.solicitacao_ajuste import STATUS_APROVADO
+from modelos.usuario import PERFIL_ESTAGIARIO
 from servicos.exportar_pdf import gerar_pdf_solicitacao
 from servicos.solicitacao import (
     ErroDeSolicitacao,
@@ -79,9 +91,19 @@ def _montar_resposta(solicitacao: SolicitacaoAjuste) -> SolicitacaoResponse:
     summary="Abre um pedido de ajuste de ponto",
 )
 def abrir_solicitacao(
-    dados: SolicitacaoCreate, session: Session = Depends(get_session)
+    dados: SolicitacaoCreate,
+    usuario: Usuario = Depends(usuario_logado),
+    session: Session = Depends(get_session),
 ) -> SolicitacaoResponse:
     """O estagiario pede a correcao de um horario de um dia ja registrado."""
+    registro = session.query(RegistroPonto).filter_by(id=dados.registro_id).first()
+    if registro is not None and (
+        usuario.perfil != PERFIL_ESTAGIARIO or registro.estagiario_id != usuario.estagiario_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="So o proprio estagiario pede ajuste do proprio ponto.",
+        )
     try:
         solicitacao = criar_solicitacao(
             registro_id=dados.registro_id,
@@ -113,6 +135,7 @@ def abrir_solicitacao(
     summary="Fila de pedidos pendentes de um gestor",
 )
 def pendentes_do_gestor(
+    usuario: Usuario = Depends(usuario_logado),
     session: Session = Depends(get_session),
     gestor_id: int = Query(description="Gestor dono da fila de aprovacoes."),
 ) -> list[SolicitacaoResponse]:
@@ -123,13 +146,7 @@ def pendentes_do_gestor(
     se houvesse um GET /solicitacoes/{id} antes, "pendentes" seria lido como
     um id e daria erro de validacao.
     """
-    gestor = session.query(Gestor).filter_by(id=gestor_id).first()
-    if gestor is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Gestor {gestor_id} nao encontrado.",
-        )
-
+    exigir_o_proprio_gestor(gestor_id, usuario)
     return [_montar_resposta(item) for item in listar_pendentes(gestor_id, session)]
 
 
@@ -139,6 +156,7 @@ def pendentes_do_gestor(
     summary="Historico de solicitacoes (base da auditoria)",
 )
 def historico(
+    usuario: Usuario = Depends(usuario_logado),
     session: Session = Depends(get_session),
     estagiario_id: int | None = Query(
         default=None, description="Filtra pelos pedidos de um estagiario."
@@ -151,10 +169,18 @@ def historico(
 ) -> list[SolicitacaoResponse]:
     """Tudo que ja foi pedido, com quem respondeu e quando (funcionalidade 17).
 
-    Sem filtro, devolve o historico inteiro - e a visao da tela de auditoria.
+    Para o gestor, sem filtro, devolve o historico da equipe inteira - e a
+    visao da tela de auditoria. Para o estagiario, sempre so os dele.
     """
+    if estagiario_id is not None:
+        exigir_ver_estagiario(estagiario_id, usuario, session)
+    if usuario.perfil == PERFIL_ESTAGIARIO:
+        estagiario_id = usuario.estagiario_id
+        gestor_id = None
+    else:
+        gestor_id = usuario.gestor_id
     solicitacoes = listar_solicitacoes(
-        session, estagiario_id=estagiario_id, status=status_filtro
+        session, estagiario_id=estagiario_id, status=status_filtro, gestor_id=gestor_id
     )
     return [_montar_resposta(item) for item in solicitacoes]
 
@@ -167,15 +193,11 @@ def historico(
 def decidir_solicitacao(
     solicitacao_id: int,
     decisao: SolicitacaoDecisao,
+    usuario: Usuario = Depends(usuario_logado),
     session: Session = Depends(get_session),
 ) -> SolicitacaoDecisaoResponse:
     """Aprovar aplica o horario no registro; rejeitar nao encosta nele."""
-    gestor = session.query(Gestor).filter_by(id=decisao.gestor_id).first()
-    if gestor is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Gestor {decisao.gestor_id} nao encontrado.",
-        )
+    exigir_o_proprio_gestor(decisao.gestor_id, usuario)
 
     try:
         if decisao.status == STATUS_APROVADO:
@@ -215,7 +237,9 @@ def decidir_solicitacao(
     summary="Baixa o comprovante em PDF de uma solicitacao (funcionalidade 18)",
 )
 def baixar_pdf(
-    solicitacao_id: int, session: Session = Depends(get_session)
+    solicitacao_id: int,
+    usuario: Usuario = Depends(usuario_logado),
+    session: Session = Depends(get_session),
 ) -> Response:
     """Gera o PDF na hora (nao fica guardado em disco) e devolve como anexo.
 
@@ -230,6 +254,11 @@ def baixar_pdf(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Solicitacao {solicitacao_id} nao encontrada.",
+        )
+    if not pode_ver_estagiario(usuario, solicitacao.estagiario):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Voce nao tem permissao para acessar estes dados.",
         )
 
     pdf_bytes = gerar_pdf_solicitacao(solicitacao)

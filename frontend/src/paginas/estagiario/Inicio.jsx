@@ -1,12 +1,12 @@
 import { Link, useNavigate, useOutletContext } from "react-router-dom";
-import { ArrowRight, CalendarRange, CircleAlert, Info, TriangleAlert } from "lucide-react";
+import { ArrowRight, CalendarDays, CalendarRange, CircleAlert, GraduationCap, Info, LifeBuoy, TriangleAlert } from "lucide-react";
 import { acentuar } from "../../api/cliente";
 import { CartaoPonto } from "../../components/CartaoPonto";
 import { GraficoTendencia, GraficoUltimosDias } from "../../components/Graficos";
 import { AnelProgresso, CarregandoPagina, ErroCarregar, Indicador, Numero } from "../../components/Ui";
 import {
-  diaDaSemana, formatarData, formatarDataCurta, formatarHoras, formatarSaldo, horasEMinutos,
-  NOMES_CAMPOS, primeiroNome, saudacao,
+  diaDaSemana, formatarData, formatarDataCurta, formatarHoras, formatarSaldo, hora, horasEMinutos,
+  NOMES_CAMPOS, NOMES_TIPO_COMPROMISSO, primeiroNome, saudacao,
 } from "../../utils/formato";
 
 // Painel inicial do estagiario (Entrega 3): tudo que o sistema calcula,
@@ -37,6 +37,15 @@ export function Inicio() {
       </div>
 
       <div className="pilha" style={{ marginBottom: 16 }}>
+        {painel.dia_de_prova_hoje && (
+          <div className="aviso aviso--credito entra">
+            <GraduationCap />
+            <div>
+              <strong>Hoje é dia de prova.</strong> Sua meta de hoje é {formatarHoras(painel.meta_hoje)}, metade da meta normal
+              (Lei 11.788/2008, art. 10). O saldo do dia já é calculado assim.
+            </div>
+          </div>
+        )}
         {painel.em_alerta && (
           <div className="aviso aviso--alerta entra">
             <CircleAlert />
@@ -134,6 +143,26 @@ export function Inicio() {
       <div className="espaco" />
 
       <div className="grade grade-principal">
+        <AgendaDoDia painel={painel} />
+        <section className="cartao cartao-chamados-resumo entra" style={{ "--i": 7 }}>
+          <div className="cartao-cabeca">
+            <h2><LifeBuoy />Chamados</h2>
+            <Link className="link-discreto" to="chamados">abrir <ArrowRight size={12} /></Link>
+          </div>
+          <div className="cartao-corpo">
+            <div className="indicador-valor"><Numero valor={painel.chamados_em_aberto} /></div>
+            <p className="texto-3" style={{ fontSize: 13, marginTop: 4 }}>
+              {painel.chamados_em_aberto
+                ? "chamado(s) em aberto com o gestor."
+                : "Nenhum chamado em aberto. Acesso, equipamento ou sistema travou? Abra um chamado."}
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <div className="espaco" />
+
+      <div className="grade grade-principal">
         <section className="cartao entra" style={{ "--i": 7 }}>
           <div className="cartao-cabeca">
             <h2>Tendência do saldo</h2>
@@ -190,6 +219,44 @@ export function Inicio() {
         </>
       )}
     </>
+  );
+}
+
+// Hoje e os proximos 14 dias da agenda (Entrega 3). O dia de prova aparece
+// destacado porque muda a meta.
+function AgendaDoDia({ painel }) {
+  const hoje = painel.compromissos_hoje;
+  const proximos = painel.proximos_compromissos;
+  return (
+    <section className="cartao entra" style={{ "--i": 6 }}>
+      <div className="cartao-cabeca">
+        <h2><CalendarDays />Agenda</h2>
+        <Link className="link-discreto" to="agenda">ver tudo <ArrowRight size={12} /></Link>
+      </div>
+      {hoje.length === 0 && proximos.length === 0 ? (
+        <div className="cartao-corpo texto-3" style={{ fontSize: 13.5 }}>
+          Nada na agenda. Cadastre suas provas: nesses dias a meta do estágio cai pela metade.
+        </div>
+      ) : (
+        <ul className="lista-agenda lista-agenda--compacta">
+          {[...hoje.map((c) => ({ ...c, ehHoje: true })), ...proximos].map((c) => (
+            <li key={c.id} className={`agenda-item agenda-item--${c.tipo}`}>
+              <div className="data-bloco">
+                <span>{c.ehHoje ? "hoje" : diaDaSemana(c.data)}</span>
+                <b>{formatarDataCurta(c.data)}</b>
+              </div>
+              <div className="agenda-corpo">
+                <div className="agenda-topo">
+                  <span className={`agenda-tipo agenda-tipo--${c.tipo}`}>{NOMES_TIPO_COMPROMISSO[c.tipo]}</span>
+                  <span className="mono texto-3">{c.inicio ? hora(c.inicio) : "dia inteiro"}</span>
+                </div>
+                <b>{c.titulo}</b>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

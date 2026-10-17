@@ -6,6 +6,8 @@ Fina, como as demais: chama servicos/ponto.py e traduz o erro de regra em
 409. A resposta reaproveita _montar_resposta de api/rotas/registros.py,
 para o registro voltar com as mesmas horas, pendencia e aviso de limite
 legal que a rota de registro completo devolve.
+
+Com o login, so o proprio estagiario bate o proprio ponto.
 """
 
 from datetime import datetime
@@ -14,9 +16,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from api.permissoes import exigir_o_proprio_estagiario, usuario_logado
 from api.rotas.registros import _montar_resposta
 from api.schemas import PontoRequest, PontoResponse
 from banco.conexao import get_session
+from modelos import Usuario
 from servicos.ponto import ErroDePonto, bater_ponto, proxima_marcacao
 
 router = APIRouter(prefix="/ponto", tags=["Ponto"])
@@ -36,9 +40,11 @@ def _agora() -> datetime:
 def marcar_ponto(
     estagiario_id: int,
     dados: PontoRequest | None = None,
+    usuario: Usuario = Depends(usuario_logado),
     session: Session = Depends(get_session),
 ) -> PontoResponse:
     """Marca a hora atual no proximo horario vazio do dia de hoje."""
+    exigir_o_proprio_estagiario(estagiario_id, usuario, session)
     marcacao = dados.marcacao if dados else None
     try:
         registro, campo = bater_ponto(estagiario_id, _agora(), session, marcacao)

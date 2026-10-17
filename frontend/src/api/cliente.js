@@ -1,8 +1,14 @@
 // Cliente HTTP compartilhado por todas as telas.
 //
-// Monta a URL, manda o token (se houver um configurado), trata "API fora
-// do ar" e traduz o erro da API (que vem em { detail: ... }) para uma
-// mensagem em portugues, pronta para mostrar na tela.
+// Monta a URL, manda os dois cabecalhos de acesso, trata "API fora do ar"
+// e traduz o erro da API (que vem em { detail: ... }) para uma mensagem em
+// portugues, pronta para mostrar na tela.
+//
+// Os dois cabecalhos (Entrega 3):
+//   X-API-Key      a chave do APLICATIVO (VITE_API_TOKEN), igual para todos
+//   Authorization  o token do LOGIN de quem esta usando ("Bearer ...")
+// O token do login fica no localStorage (ver context/SessaoContext.jsx) e e
+// lido aqui a cada chamada, entao entrar e sair valem na hora.
 //
 // Uso:
 //   const dados = await api.get("/estagiarios");
@@ -12,6 +18,30 @@
 
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
 const API_TOKEN = import.meta.env.VITE_API_TOKEN || "";
+export const CHAVE_LOGIN = "internhub-login";
+
+// Quem esta logado registra aqui o que fazer quando a sessao vence (a API
+// responde 401): volta para a tela de login em vez de mostrar erro solto.
+let aoSessaoExpirar = () => {};
+export function quandoSessaoExpirar(funcao) {
+  aoSessaoExpirar = funcao;
+}
+
+function tokenDoLogin() {
+  try {
+    return JSON.parse(localStorage.getItem(CHAVE_LOGIN) || "{}").token || "";
+  } catch {
+    return "";
+  }
+}
+
+function cabecalhosDeAcesso() {
+  const cabecalhos = {};
+  if (API_TOKEN) cabecalhos["X-API-Key"] = API_TOKEN;
+  const token = tokenDoLogin();
+  if (token) cabecalhos.Authorization = `Bearer ${token}`;
+  return cabecalhos;
+}
 
 async function chamar(verbo, caminho, { payload, params } = {}) {
   const url = new URL(API_URL + caminho);
@@ -23,8 +53,7 @@ async function chamar(verbo, caminho, { payload, params } = {}) {
     });
   }
 
-  const cabecalhos = { "Content-Type": "application/json" };
-  if (API_TOKEN) cabecalhos.Authorization = `Bearer ${API_TOKEN}`;
+  const cabecalhos = { "Content-Type": "application/json", ...cabecalhosDeAcesso() };
 
   let resposta;
   try {
@@ -47,9 +76,19 @@ async function chamar(verbo, caminho, { payload, params } = {}) {
   const corpo = ehJson ? await resposta.json().catch(() => null) : await resposta.blob();
 
   if (!resposta.ok) {
+    avisarSeSessaoVenceu(resposta, corpo, caminho);
     throw new Error(mensagemDoErro(resposta, corpo));
   }
   return corpo;
+}
+
+// 401 que nao e da chave do aplicativo nem da propria tela de login = o
+// token do login venceu ou foi encerrado.
+function avisarSeSessaoVenceu(resposta, corpo, caminho) {
+  const detalhe = corpo && typeof corpo === "object" ? String(corpo.detail || "") : "";
+  if (resposta.status === 401 && !detalhe.includes("X-API-Key") && caminho !== "/auth/entrar") {
+    aoSessaoExpirar();
+  }
 }
 
 // As mensagens da API sao escritas sem acento (o codigo Python do grupo
@@ -61,6 +100,8 @@ const ACENTOS = {
   invalido: "inválido", invalida: "inválida", ate: "até", voce: "você", atencao: "atenção",
   credito: "crédito", decisao: "decisão", gestao: "gestão", minimo: "mínimo", ha: "há",
   sera: "será", tambem: "também", periodo: "período", util: "útil",
+  sessao: "sessão", permissao: "permissão", so: "só", proprio: "próprio", propria: "própria",
+  inicio: "início", faca: "faça", codigo: "código", cracha: "crachá",
 };
 
 export function acentuar(texto) {
@@ -78,8 +119,8 @@ export function acentuar(texto) {
 function mensagemDoErro(resposta, corpo) {
   const detalhe = corpo && typeof corpo === "object" ? corpo.detail : null;
 
-  if (resposta.status === 401) {
-    return "A API recusou o acesso (token inválido). Coloque o mesmo API_TOKEN do .env da raiz em VITE_API_TOKEN, no frontend/.env.";
+  if (resposta.status === 401 && typeof detalhe === "string" && detalhe.includes("X-API-Key")) {
+    return "A API recusou a chave do aplicativo. Coloque o mesmo API_TOKEN do .env da raiz em VITE_API_TOKEN, no frontend/.env.";
   }
   if (resposta.status === 429) {
     return "Muitas requisições em pouco tempo. Aguarde alguns segundos e tente de novo.";
@@ -109,12 +150,10 @@ export const api = {
     if (params) {
       Object.entries(params).forEach(([chave, valor]) => url.searchParams.set(chave, valor));
     }
-    const cabecalhos = {};
-    if (API_TOKEN) cabecalhos.Authorization = `Bearer ${API_TOKEN}`;
-
-    const resposta = await fetch(url, { headers: cabecalhos });
+    const resposta = await fetch(url, { headers: cabecalhosDeAcesso() });
     if (!resposta.ok) {
       const corpo = await resposta.json().catch(() => null);
+      avisarSeSessaoVenceu(resposta, corpo, caminho);
       throw new Error(mensagemDoErro(resposta, corpo));
     }
     return resposta.blob();

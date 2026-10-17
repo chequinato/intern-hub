@@ -10,7 +10,13 @@ ORM nos poupa), pedimos ao banco a soma pronta com func.sum().
 
 Recursos do SQLAlchemy usados aqui: func.sum, func.count, func.cast,
 func.strftime, case, query().filter(), group_by() (tendencia mes a mes,
-acrescentada na Entrega 3).
+acrescentada na Entrega 3) e in_() com subconsulta (dia de prova, Entrega 3).
+
+Dia de prova (Entrega 3, Miguel - servicos/agenda.py): pela Lei do Estagio,
+a carga horaria cai pelo menos pela metade nos dias de avaliacao. Nesses
+dias a meta conta pela metade. A conta continua inteira no banco: um
+case() marca com 1 os dias cuja data esta na subconsulta das provas, e o
+func.sum() desse 1 diz quantos dias completos foram de prova.
 """
 
 from sqlalchemy import Integer, case, func
@@ -18,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from modelos import Configuracao, RegistroPonto
 from modelos.configuracao import LIMITE_ALERTA_NEGATIVO_PADRAO
+from servicos.agenda import FATOR_META_DIA_DE_PROVA, subconsulta_dias_de_prova
 from servicos.calculo import ALMOCO_MINIMO_HORAS, calcular_horas_trabalhadas
 
 ALMOCO_MINIMO_SEGUNDOS = int(ALMOCO_MINIMO_HORAS * 3600)
@@ -76,6 +83,20 @@ def _trabalhado_segundos():
     return bruto_segundos - almoco_efetivo
 
 
+def _dia_de_prova(estagiario_id: int):
+    """Expressao SQL: 1 se o dia do registro e dia de prova, 0 se nao."""
+    return case(
+        (RegistroPonto.data.in_(subconsulta_dias_de_prova(estagiario_id)), 1),
+        else_=0,
+    )
+
+
+def _meta_total(meta_diaria: float, dias: int, dias_de_prova: int) -> float:
+    """Meta somada de N dias, com os dias de prova valendo a fracao da lei."""
+    dias_normais = dias - dias_de_prova
+    return meta_diaria * dias_normais + meta_diaria * FATOR_META_DIA_DE_PROVA * dias_de_prova
+
+
 def _filtro_dias_completos(estagiario_id: int) -> tuple:
     """Condicoes do filter(): so dias do estagiario com os quatro horarios."""
     return (
@@ -97,14 +118,16 @@ def calcular_saldo_acumulado(estagiario_id: int, session: Session) -> float:
     O func.sum() soma esse trabalhado de todos os dias de uma vez; o
     func.count() diz quantos dias entraram na conta, para descontar a meta.
 
-    saldo = horas_trabalhadas_totais - (meta_diaria * dias_completos)
+    saldo = horas_trabalhadas_totais - meta somada dos dias completos
+    (a meta de um dia de prova conta pela metade)
     """
     meta_diaria = _meta_diaria(estagiario_id, session)
 
-    total_segundos, dias_completos = (
+    total_segundos, dias_completos, dias_de_prova = (
         session.query(
             func.sum(_trabalhado_segundos()),
             func.count(RegistroPonto.id),
+            func.sum(_dia_de_prova(estagiario_id)),
         )
         .filter(*_filtro_dias_completos(estagiario_id))
         .one()
@@ -114,7 +137,7 @@ def calcular_saldo_acumulado(estagiario_id: int, session: Session) -> float:
         return 0.0
 
     horas_trabalhadas = (total_segundos or 0) / 3600
-    saldo = horas_trabalhadas - (meta_diaria * dias_completos)
+    saldo = horas_trabalhadas - _meta_total(meta_diaria, dias_completos, dias_de_prova or 0)
     return round(saldo, 2)
 
 
@@ -149,6 +172,7 @@ def saldo_por_mes(estagiario_id: int, session: Session) -> list[dict]:
             mes.label("mes"),
             func.sum(_trabalhado_segundos()),
             func.count(RegistroPonto.id),
+            func.sum(_dia_de_prova(estagiario_id)),
         )
         .filter(*_filtro_dias_completos(estagiario_id))
         .group_by(mes)
@@ -158,9 +182,9 @@ def saldo_por_mes(estagiario_id: int, session: Session) -> list[dict]:
 
     resultado = []
     acumulado = 0.0
-    for mes_texto, segundos, dias in linhas:
+    for mes_texto, segundos, dias, dias_de_prova in linhas:
         horas = (segundos or 0) / 3600
-        saldo_mes = horas - meta_diaria * dias
+        saldo_mes = horas - _meta_total(meta_diaria, dias, dias_de_prova or 0)
         acumulado += saldo_mes
         ano, numero_mes = mes_texto.split("-")
         resultado.append({

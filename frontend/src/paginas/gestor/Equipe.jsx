@@ -1,14 +1,23 @@
+import { useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowRight, ClipboardCheck, Users, Wallet } from "lucide-react";
+import { ArrowRight, CircleAlert, ClipboardCheck, GraduationCap, IdCard, LoaderCircle, Save, SlidersHorizontal, Users, Wallet } from "lucide-react";
+import { api } from "../../api/cliente";
+import { useApiState } from "../../useApiState";
+import { useNotificar } from "../../components/Notificacoes";
 import { DicaGrafico } from "../../components/DicaGrafico";
-import { Avatar, Barra, CarregandoPagina, ErroCarregar, Indicador, Numero, Vazio } from "../../components/Ui";
-import { formatarData, formatarHoras, formatarSaldo, primeiroNome, saudacao } from "../../utils/formato";
+import { Avatar, Barra, CarregandoPagina, ErroCarregar, Esqueleto, Gaveta, Indicador, Numero, Vazio } from "../../components/Ui";
+import { formatarData, formatarHoras, formatarSaldo, hojeIso, hora, primeiroNome, saudacao } from "../../utils/formato";
 
 // Painel do gestor (Entrega 3): a equipe inteira numa tela - quem esta em
 // alerta, quem passou do limite legal e quantos pedidos esperam decisao.
+//
+// "Gerenciar" abre a gaveta de cada estagiario: meta e limites (com o login,
+// so o gestor responsavel altera), as proximas provas (dias de meta pela
+// metade) e o cracha, que o gestor desativa no fim do estagio.
 export function Equipe() {
   const { gestor, painel, painelErro, recarregar } = useOutletContext();
+  const [gerenciando, setGerenciando] = useState(null);
 
   if (painelErro) return <ErroCarregar mensagem={painelErro} aoTentar={recarregar} />;
   if (!painel) return <CarregandoPagina />;
@@ -46,6 +55,10 @@ export function Equipe() {
         <Indicador rotulo="Pedidos na fila" rodape={painel.pedidos_na_fila ? "esperando sua decisão" : "fila vazia"}>
           <Numero valor={painel.pedidos_na_fila} />
         </Indicador>
+        <Indicador rotulo="Chamados sem resposta"
+          rodape={<Link to="chamados" className="link-discreto">{painel.chamados_em_andamento} em andamento <ArrowRight size={11} /></Link>}>
+          <span className={painel.chamados_sem_resposta ? "atencao" : ""}><Numero valor={painel.chamados_sem_resposta} /></span>
+        </Indicador>
       </div>
 
       <div className="espaco" />
@@ -57,7 +70,7 @@ export function Equipe() {
         </div>
         {painel.equipe.length === 0 ? (
           <Vazio icone={Users} titulo="Nenhum estagiário na equipe">
-            O estagiário escolhe o gestor responsável no cadastro ou em Configurações.
+            O estagiário escolhe o gestor responsável quando cria a conta.
           </Vazio>
         ) : (
           <div className="tabela-moldura">
@@ -69,6 +82,7 @@ export function Equipe() {
                   <th style={{ minWidth: 170 }}>Semana atual</th>
                   <th>Situação</th>
                   <th className="direita">Pedidos</th>
+                  <th className="direita"><span className="visualmente-oculto">Ações</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -118,6 +132,11 @@ export function Equipe() {
                         <Link to="aprovacoes" className="selo selo--atencao" style={{ textDecoration: "none" }}>{l.pedidos_pendentes} na fila <ArrowRight size={12} /></Link>
                       ) : <span className="texto-3">—</span>}
                     </td>
+                    <td className="direita">
+                      <button type="button" className="botao botao--pequeno" onClick={() => setGerenciando(l)}>
+                        <SlidersHorizontal />Gerenciar
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -140,7 +159,125 @@ export function Equipe() {
           </section>
         </>
       )}
+
+      <Gaveta
+        aberta={Boolean(gerenciando)}
+        titulo={gerenciando?.nome}
+        subtitulo="meta, provas e crachá"
+        aoFechar={() => setGerenciando(null)}
+      >
+        {gerenciando && <GerenciarEstagiario estagiarioId={gerenciando.estagiario_id} aoSalvar={recarregar} />}
+      </Gaveta>
     </>
+  );
+}
+
+function GerenciarEstagiario({ estagiarioId, aoSalvar }) {
+  const notificar = useNotificar();
+  const pessoa = useApiState(() => api.get(`/estagiarios/${estagiarioId}`), [estagiarioId]);
+  const provas = useApiState(() => api.get(`/agenda/${estagiarioId}`, { inicio: hojeIso() }), [estagiarioId]);
+  const cracha = useApiState(() => api.get(`/cracha/${estagiarioId}`), [estagiarioId]);
+  const [form, setForm] = useState(null);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
+
+  const c = pessoa.dados?.configuracao;
+  const valores = form || (c && {
+    meta_horas_diaria: c.meta_horas_diaria, meta_horas_semanal: c.meta_horas_semanal,
+    limite_maximo_diario: c.limite_maximo_diario, limite_maximo_semanal: c.limite_maximo_semanal,
+    limite_alerta_negativo: c.limite_alerta_negativo, prazo_vencimento_meses: c.prazo_vencimento_meses,
+  });
+  const mudar = (campo) => (e) => setForm({ ...valores, [campo]: e.target.value });
+
+  async function salvar(e) {
+    e.preventDefault();
+    setSalvando(true);
+    setErro(null);
+    try {
+      const numeros = Object.fromEntries(Object.entries(valores).map(([k, v]) => [k, Number(v)]));
+      await api.patch(`/estagiarios/${estagiarioId}/configuracao`, numeros);
+      notificar.sucesso("Meta salva", "O saldo já foi recalculado com a nova meta.");
+      setForm(null);
+      pessoa.recarregar();
+      aoSalvar();
+    } catch (e2) {
+      setErro(e2.message);
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function alternarCracha() {
+    try {
+      cracha.setDados(await api.patch(`/cracha/${estagiarioId}`, { ativo: !cracha.dados.ativo }));
+      notificar.info(cracha.dados.ativo ? "Crachá desativado" : "Crachá reativado", "A verificação pelo QR code já mostra a mudança.");
+    } catch (e) {
+      notificar.erro("Não foi possível alterar o crachá", e.message);
+    }
+  }
+
+  if (!valores) return <div className="pilha"><Esqueleto altura={180} /><Esqueleto altura={120} /></div>;
+
+  const listaProvas = (provas.dados || []).filter((p) => p.tipo === "prova");
+  const campos = [
+    ["meta_horas_diaria", "Meta por dia (h)", "0.5"], ["meta_horas_semanal", "Meta por semana (h)", "1"],
+    ["limite_maximo_diario", "Máximo legal por dia (h)", "0.5"], ["limite_maximo_semanal", "Máximo legal por semana (h)", "1"],
+    ["limite_alerta_negativo", "Alerta de saldo (h)", "0.5"], ["prazo_vencimento_meses", "Crédito vence em (meses)", "1"],
+  ];
+
+  return (
+    <div className="pilha" style={{ gap: 22 }}>
+      <form className="pilha" style={{ gap: 14 }} onSubmit={salvar}>
+        <div className="divisor">Meta e limites</div>
+        <div className="grade-campos" style={{ gridTemplateColumns: "1fr 1fr" }}>
+          {campos.map(([campo, rotulo, passo]) => (
+            <div className="campo" key={campo}>
+              <label htmlFor={`g-${campo}`}>{rotulo}</label>
+              <input id={`g-${campo}`} type="number" step={passo} value={valores[campo]} onChange={mudar(campo)} required />
+            </div>
+          ))}
+        </div>
+        {erro && <div className="aviso aviso--alerta"><CircleAlert />{erro}</div>}
+        <div>
+          <button type="submit" className="botao botao--primario" disabled={salvando || !form}>
+            {salvando ? <LoaderCircle className="girando" /> : <Save />}Salvar meta
+          </button>
+        </div>
+      </form>
+
+      <div className="pilha" style={{ gap: 10 }}>
+        <div className="divisor">Próximas provas</div>
+        {listaProvas.length === 0 ? (
+          <p className="texto-3" style={{ fontSize: 13 }}>Nenhuma prova cadastrada. O estagiário cadastra na agenda dele.</p>
+        ) : (
+          <ul className="lista-regras">
+            {listaProvas.slice(0, 5).map((p) => (
+              <li key={p.id}>
+                <span><GraduationCap size={13} style={{ display: "inline", verticalAlign: "-2px" }} /> {p.titulo}</span>
+                <b className="mono">{formatarData(p.data)}{p.inicio ? ` ${hora(p.inicio)}` : ""}</b>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="texto-3" style={{ fontSize: 12.5 }}>Nesses dias a meta cai pela metade (Lei 11.788/2008, art. 10).</p>
+      </div>
+
+      <div className="pilha" style={{ gap: 10 }}>
+        <div className="divisor">Crachá</div>
+        {cracha.dados ? (
+          <div className="linha-cracha">
+            <IdCard />
+            <div style={{ flex: 1 }}>
+              <b>{cracha.dados.ativo ? "Ativo" : "Desativado"}</b>
+              <span className="texto-3" style={{ display: "block", fontSize: 12.5 }}>emitido em {formatarData(cracha.dados.emitido_em)}</span>
+            </div>
+            <button type="button" className={`botao botao--pequeno${cracha.dados.ativo ? " botao--perigo" : ""}`} onClick={alternarCracha}>
+              {cracha.dados.ativo ? "Desativar" : "Reativar"}
+            </button>
+          </div>
+        ) : <Esqueleto altura={52} />}
+      </div>
+    </div>
   );
 }
 
