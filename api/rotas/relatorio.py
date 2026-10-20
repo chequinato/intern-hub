@@ -33,6 +33,7 @@ from modelos.registro_ponto import RegistroPonto
 from modelos.usuario import Usuario
 from servicos.agenda import datas_de_prova, meta_do_dia
 from servicos.calculo import calcular_horas_trabalhadas
+from servicos.estagio import datas_de_recesso
 from servicos.exportar_relatorio import gerar_relatorio_excel, gerar_relatorio_pdf
 from servicos.feriados import eh_dia_util
 from servicos.saldo import calcular_saldo_acumulado, saldo_por_mes
@@ -141,9 +142,15 @@ def obter_relatorio(
         .scalar()
     )
 
+    # Entrega 3: dia de recesso aprovado (Lei 11.788/2008, art. 13) nao e
+    # falta - o estagiario estava de folga com autorizacao do gestor.
+    recesso = datas_de_recesso(estagiario_id, session, primeiro_do_mes, ultimo_do_mes)
+
     for dia in range(1, dia_limite + 1):
         data_atual = date(ano, mes, dia)
         if primeiro_registro is None or data_atual < primeiro_registro:
+            continue
+        if data_atual in recesso:
             continue
         if eh_dia_util(data_atual, session) and dia not in dias_trabalhados:
             faltas += 1
@@ -164,6 +171,7 @@ def obter_relatorio(
         "aviso_vencimento": aviso,
         "evolucao_diaria": evolucao,
         "datas_provas": sorted(provas),
+        "datas_recesso": sorted(recesso),
     }
 
 

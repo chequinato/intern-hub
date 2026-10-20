@@ -228,6 +228,7 @@ class RelatorioMensalResponse(BaseModel):
     aviso_vencimento: Optional[str] = None
     evolucao_diaria: List[RelatorioDiario]
     datas_provas: List[date] = []
+    datas_recesso: List[date] = []
 
 # --- Gestor, solicitacoes de ajuste e auditoria -------------------------------
 # Parte do Pedro Henrique (secao 3.4). Mesmo padrao da fundacao: um *Create
@@ -512,6 +513,8 @@ class PainelEstagiarioResponse(BaseModel):
     compromissos_hoje: List[CompromissoResponse] = []
     proximos_compromissos: List[CompromissoResponse] = []
     chamados_em_aberto: int = 0
+    contrato: dict = {}
+    recesso: dict = {}
 
 
 class LinhaEquipe(BaseModel):
@@ -528,6 +531,8 @@ class LinhaEquipe(BaseModel):
     pendencias: int
     pedidos_pendentes: int
     ultimo_ponto: date | None = None
+    dias_para_fim_contrato: int | None = None
+    recessos_pendentes: int = 0
 
 
 class PainelGestorResponse(BaseModel):
@@ -543,6 +548,8 @@ class PainelGestorResponse(BaseModel):
     saldo_medio: float
     chamados_sem_resposta: int = 0
     chamados_em_andamento: int = 0
+    contratos_vencendo: int = 0
+    recessos_pendentes: int = 0
     equipe: List[LinhaEquipe]
 
 
@@ -722,3 +729,132 @@ class CrachaVerificacaoResponse(BaseModel):
 
 class CrachaStatusUpdate(BaseModel):
     ativo: bool
+
+
+# --- Entrega 3 (terceira parte): contrato de estagio --------------------------------
+# Parte do Miguel. Lei 11.788/2008: termo (art. 11), recesso (art. 13) e
+# relatorio de atividades (art. 9o, VII). Regras em servicos/estagio.py.
+
+
+class TermoUpdate(BaseModel):
+    """Payload de PUT /estagio/{id}/termo (so o gestor responsavel)."""
+
+    data_inicio: date
+    data_fim: date
+    instituicao_ensino: str | None = Field(default=None, max_length=120)
+    curso: str | None = Field(default=None, max_length=120)
+    pessoa_com_deficiencia: bool = False
+
+
+class ContratoResponse(BaseModel):
+    cadastrado: bool
+    data_inicio: date | None = None
+    data_fim: date | None = None
+    instituicao_ensino: str | None = None
+    curso: str | None = None
+    pessoa_com_deficiencia: bool = False
+    dias_restantes: int | None = None
+    vencendo: bool = False
+    encerrado: bool = False
+
+
+class SaldoRecessoResponse(BaseModel):
+    inicio_estagio: date | None = None
+    meses_completos: int
+    direito: int
+    aprovados: int
+    pendentes: int
+    disponiveis: int
+
+
+class RecessoCreate(BaseModel):
+    """Payload de POST /estagio/recessos. O estagiario vem do login."""
+
+    data_inicio: date
+    data_fim: date
+    observacao: str | None = Field(default=None, max_length=300)
+
+
+class RecessoResponse(BaseModel):
+    id: int
+    estagiario_id: int
+    estagiario_nome: str
+    data_inicio: date
+    data_fim: date
+    dias: int
+    observacao: str | None = None
+    status: str
+    pedido_em: datetime
+    respondido_em: datetime | None = None
+    gestor_nome: str | None = None
+
+
+class RecessoDecisao(BaseModel):
+    status: str
+
+    @field_validator("status")
+    @classmethod
+    def _decisao(cls, valor: str) -> str:
+        if valor not in ("aprovado", "rejeitado"):
+            raise ValueError("status precisa ser aprovado ou rejeitado")
+        return valor
+
+
+class EstagioResponse(BaseModel):
+    """GET /estagio/{id}: contrato, saldo de recesso e os pedidos."""
+
+    contrato: ContratoResponse
+    recesso: SaldoRecessoResponse
+    pedidos: List[RecessoResponse]
+
+
+class AtividadeCreate(BaseModel):
+    data: date
+    descricao: str = Field(min_length=5, max_length=1000)
+
+    @field_validator("descricao")
+    @classmethod
+    def _descricao(cls, valor: str) -> str:
+        texto = valor.strip()
+        if len(texto) < 5:
+            raise ValueError("descreva a atividade com pelo menos 5 caracteres")
+        return texto
+
+
+class AtividadeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    data: date
+    descricao: str
+    criada_em: datetime
+
+
+class SemestreResponse(BaseModel):
+    """O relatorio de atividades de um semestre (tela e PDF)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    estagiario_id: int
+    estagiario_nome: str
+    ano: int
+    semestre: int
+    inicio: date
+    fim: date
+    horas_trabalhadas: float
+    dias_trabalhados: int
+    atividades: List[AtividadeResponse]
+    status: str
+    avaliacao_gestor: str | None = None
+    validado_em: datetime | None = None
+    gestor_nome: str | None = None
+    ciente_em: datetime | None = None
+    instituicao_ensino: str | None = None
+    curso: str | None = None
+
+
+class AvaliacaoSemestre(BaseModel):
+    """Payload de PUT /estagio/{id}/semestre/{ano}/{semestre} (gestor)."""
+
+    avaliacao: str = Field(default="", max_length=1500)
+    validar: bool = False

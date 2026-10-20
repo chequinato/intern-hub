@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowRight, CircleAlert, ClipboardCheck, GraduationCap, IdCard, LoaderCircle, Save, SlidersHorizontal, Users, Wallet } from "lucide-react";
+import { ArrowRight, CalendarClock, CircleAlert, ClipboardCheck, GraduationCap, IdCard, LoaderCircle, Save, SlidersHorizontal, Users, Wallet } from "lucide-react";
 import { api } from "../../api/cliente";
 import { useApiState } from "../../useApiState";
 import { useNotificar } from "../../components/Notificacoes";
@@ -122,6 +122,13 @@ export function Equipe() {
                           </span>
                         )}
                         {l.pendencias > 0 && <span className="selo selo--info">{l.pendencias} pendência(s)</span>}
+                        {l.dias_para_fim_contrato != null && l.dias_para_fim_contrato >= 0 && l.dias_para_fim_contrato <= 30 && (
+                          <span className="selo selo--atencao">Contrato acaba em {l.dias_para_fim_contrato} dia(s)</span>
+                        )}
+                        {l.dias_para_fim_contrato != null && l.dias_para_fim_contrato < 0 && (
+                          <span className="selo selo--alerta">Contrato encerrado</span>
+                        )}
+                        {l.recessos_pendentes > 0 && <span className="selo selo--info">Recesso a aprovar</span>}
                         {!l.em_alerta && !l.acima_limite_semanal && !l.dias_acima_limite_diario && !l.pendencias && (
                           <span className="selo selo--credito">Em dia</span>
                         )}
@@ -163,7 +170,7 @@ export function Equipe() {
       <Gaveta
         aberta={Boolean(gerenciando)}
         titulo={gerenciando?.nome}
-        subtitulo="meta, provas e crachá"
+        subtitulo="contrato, meta, provas e crachá"
         aoFechar={() => setGerenciando(null)}
       >
         {gerenciando && <GerenciarEstagiario estagiarioId={gerenciando.estagiario_id} aoSalvar={recarregar} />}
@@ -177,6 +184,7 @@ function GerenciarEstagiario({ estagiarioId, aoSalvar }) {
   const pessoa = useApiState(() => api.get(`/estagiarios/${estagiarioId}`), [estagiarioId]);
   const provas = useApiState(() => api.get(`/agenda/${estagiarioId}`, { inicio: hojeIso() }), [estagiarioId]);
   const cracha = useApiState(() => api.get(`/cracha/${estagiarioId}`), [estagiarioId]);
+  const estagio = useApiState(() => api.get(`/estagio/${estagiarioId}`), [estagiarioId]);
   const [form, setForm] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState(null);
@@ -227,6 +235,15 @@ function GerenciarEstagiario({ estagiarioId, aoSalvar }) {
 
   return (
     <div className="pilha" style={{ gap: 22 }}>
+      {estagio.dados ? (
+        <TermoDoEstagiario
+          estagiarioId={estagiarioId}
+          contrato={estagio.dados.contrato}
+          recesso={estagio.dados.recesso}
+          aoSalvar={() => { estagio.recarregar(); aoSalvar(); }}
+        />
+      ) : <Esqueleto altura={180} />}
+
       <form className="pilha" style={{ gap: 14 }} onSubmit={salvar}>
         <div className="divisor">Meta e limites</div>
         <div className="grade-campos" style={{ gridTemplateColumns: "1fr 1fr" }}>
@@ -278,6 +295,83 @@ function GerenciarEstagiario({ estagiarioId, aoSalvar }) {
         ) : <Esqueleto altura={52} />}
       </div>
     </div>
+  );
+}
+
+// Termo de compromisso (Lei 11.788/2008, art. 11): so o gestor cadastra.
+// Mais de 2 anos e recusado pela API, salvo pessoa com deficiencia.
+function TermoDoEstagiario({ estagiarioId, contrato, recesso, aoSalvar }) {
+  const notificar = useNotificar();
+  const [form, setForm] = useState({
+    data_inicio: contrato.data_inicio || recesso.inicio_estagio || "",
+    data_fim: contrato.data_fim || "",
+    instituicao_ensino: contrato.instituicao_ensino || "",
+    curso: contrato.curso || "",
+    pessoa_com_deficiencia: Boolean(contrato.pessoa_com_deficiencia),
+  });
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const mudar = (campo) => (e) => setForm((f) => ({ ...f, [campo]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
+
+  async function salvar(e) {
+    e.preventDefault();
+    setSalvando(true);
+    setErro(null);
+    try {
+      await api.put(`/estagio/${estagiarioId}/termo`, {
+        ...form,
+        instituicao_ensino: form.instituicao_ensino.trim() || null,
+        curso: form.curso.trim() || null,
+      });
+      notificar.sucesso("Termo salvo", "O recesso e o aviso de fim de contrato já usam as novas datas.");
+      aoSalvar();
+    } catch (e2) {
+      setErro(e2.message);
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <form className="pilha" style={{ gap: 14 }} onSubmit={salvar}>
+      <div className="divisor">Termo de compromisso</div>
+      {contrato.cadastrado && (
+        <div className={`aviso${contrato.vencendo ? " aviso--atencao" : contrato.encerrado ? " aviso--alerta" : ""}`}>
+          <CalendarClock />
+          {contrato.encerrado
+            ? "O contrato já terminou. Desative o crachá se o estágio acabou."
+            : `Faltam ${contrato.dias_restantes} dia(s) para o fim. Recesso: ${recesso.disponiveis} dia(s) disponíveis, ${recesso.pendentes} pedido(s).`}
+        </div>
+      )}
+      <div className="grade-campos" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <div className="campo">
+          <label htmlFor="t-inicio">Início</label>
+          <input id="t-inicio" type="date" value={form.data_inicio} onChange={mudar("data_inicio")} required />
+        </div>
+        <div className="campo">
+          <label htmlFor="t-fim">Fim</label>
+          <input id="t-fim" type="date" value={form.data_fim} min={form.data_inicio} onChange={mudar("data_fim")} required />
+        </div>
+        <div className="campo">
+          <label htmlFor="t-inst">Instituição de ensino</label>
+          <input id="t-inst" value={form.instituicao_ensino} onChange={mudar("instituicao_ensino")} maxLength={120} />
+        </div>
+        <div className="campo">
+          <label htmlFor="t-curso">Curso</label>
+          <input id="t-curso" value={form.curso} onChange={mudar("curso")} maxLength={120} />
+        </div>
+      </div>
+      <label className="caixa-marcar">
+        <input type="checkbox" checked={form.pessoa_com_deficiencia} onChange={mudar("pessoa_com_deficiencia")} />
+        Pessoa com deficiência (o limite de 2 anos não se aplica)
+      </label>
+      {erro && <div className="aviso aviso--alerta"><CircleAlert />{erro}</div>}
+      <div>
+        <button type="submit" className="botao botao--primario" disabled={salvando}>
+          {salvando ? <LoaderCircle className="girando" /> : <Save />}Salvar termo
+        </button>
+      </div>
+    </form>
   );
 }
 

@@ -70,5 +70,26 @@ class Estagiario(Base):
         "Cracha", back_populates="estagiario", uselist=False, cascade="all, delete-orphan"
     )
 
+    # Entrega 3 (Miguel): o contrato de estagio - termo, recesso, atividades
+    # e relatorios semestrais (modelos/estagio.py).
+    termo = relationship(
+        "TermoCompromisso", back_populates="estagiario", uselist=False, cascade="all, delete-orphan"
+    )
+    recessos = relationship(
+        "PedidoRecesso",
+        back_populates="estagiario",
+        cascade="all, delete-orphan",
+        order_by="PedidoRecesso.data_inicio",
+    )
+    atividades = relationship(
+        "AtividadeEstagio",
+        back_populates="estagiario",
+        cascade="all, delete-orphan",
+        order_by="AtividadeEstagio.data",
+    )
+    relatorios_atividades = relationship(
+        "RelatorioAtividades", back_populates="estagiario", cascade="all, delete-orphan"
+    )
+
     def __repr__(self) -> str:
         return f"<Estagiario id={self.id} nome={self.nome!r}>"

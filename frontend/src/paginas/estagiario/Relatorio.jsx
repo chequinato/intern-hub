@@ -130,6 +130,7 @@ export function Relatorio() {
                   evolucao={dados.evolucao_diaria}
                   faltas={dados.datas_faltas || []}
                   provas={dados.datas_provas || []}
+                  recesso={dados.datas_recesso || []}
                   feriados={feriados.dados || []}
                 />
               </div>
@@ -192,11 +193,13 @@ function GraficoDoMes({ evolucao }) {
   );
 }
 
-function Calendario({ ano, mes, evolucao, faltas, feriados, provas = [] }) {
+function Calendario({ ano, mes, evolucao, faltas, feriados, provas = [], recesso = [] }) {
   const trabalhados = new Map(evolucao.map((d) => [d.data, d]));
   const listaFaltas = new Set(faltas);
   // Entrega 3: dia de prova (meta pela metade) ganha a marca "P" no canto.
   const diasDeProva = new Set(provas);
+  // Entrega 3: recesso aprovado (art. 13) aparece no calendario e nao e falta.
+  const diasDeRecesso = new Set(recesso);
   const nomesFeriados = new Map(feriados.map((f) => [f.data, f.descricao]));
   const hojeTexto = hojeIso();
   const totalDias = new Date(ano, mes, 0).getDate();
@@ -213,6 +216,9 @@ function Calendario({ ano, mes, evolucao, faltas, feriados, provas = [] }) {
       const d = trabalhados.get(iso);
       tipo = d.saldo_do_dia >= 0 ? "trabalhado" : "curto";
       dica = `${horasEMinutos(d.horas_trabalhadas)} · saldo ${formatarSaldo(d.saldo_do_dia, 2)}`;
+    } else if (diasDeRecesso.has(iso)) {
+      tipo = "recesso";
+      dica = "Recesso aprovado";
     } else if (nomesFeriados.has(iso)) {
       tipo = "feriado";
       dica = nomesFeriados.get(iso);
@@ -245,6 +251,7 @@ function Calendario({ ano, mes, evolucao, faltas, feriados, provas = [] }) {
         <span><i className="cal-legenda cal-dia--curto" />Abaixo da meta</span>
         <span><i className="cal-legenda cal-dia--falta" />Falta</span>
         <span><i className="cal-legenda cal-dia--feriado" />Feriado</span>
+        <span><i className="cal-legenda cal-dia--recesso" />Recesso</span>
         <span><b className="cal-marca-prova">P</b>Dia de prova (meta pela metade)</span>
       </div>
     </>

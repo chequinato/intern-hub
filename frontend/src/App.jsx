@@ -17,6 +17,8 @@ const Ponto = carregar(() => import("./paginas/estagiario/Ponto"), "Ponto");
 const Solicitacoes = carregar(() => import("./paginas/estagiario/Solicitacoes"), "Solicitacoes");
 const Chamados = carregar(() => import("./paginas/estagiario/Chamados"), "Chamados");
 const Agenda = carregar(() => import("./paginas/estagiario/Agenda"), "Agenda");
+const Estagio = carregar(() => import("./paginas/estagiario/Estagio"), "Estagio");
+const Atividades = carregar(() => import("./paginas/estagiario/Atividades"), "Atividades");
 const Relatorio = carregar(() => import("./paginas/estagiario/Relatorio"), "Relatorio");
 const Simulacao = carregar(() => import("./paginas/estagiario/Simulacao"), "Simulacao");
 const Assistente = carregar(() => import("./paginas/estagiario/Assistente"), "Assistente");
@@ -25,6 +27,7 @@ const Configuracoes = carregar(() => import("./paginas/estagiario/Configuracoes"
 const Equipe = carregar(() => import("./paginas/gestor/Equipe"), "Equipe");
 const Aprovacoes = carregar(() => import("./paginas/gestor/Aprovacoes"), "Aprovacoes");
 const ChamadosEquipe = carregar(() => import("./paginas/gestor/ChamadosEquipe"), "ChamadosEquipe");
+const RelatoriosEquipe = carregar(() => import("./paginas/gestor/RelatoriosEquipe"), "RelatoriosEquipe");
 const Feriados = carregar(() => import("./paginas/gestor/Feriados"), "Feriados");
 const Auditoria = carregar(() => import("./paginas/gestor/Auditoria"), "Auditoria");
 const ContaGestor = carregar(() => import("./paginas/gestor/ContaGestor"), "ContaGestor");
@@ -70,6 +73,8 @@ export default function App() {
               <Route path="agenda" element={tela(Agenda)} />
               <Route path="solicitacoes" element={tela(Solicitacoes)} />
               <Route path="chamados" element={tela(Chamados)} />
+              <Route path="estagio" element={tela(Estagio)} />
+              <Route path="atividades" element={tela(Atividades)} />
               <Route path="relatorio" element={tela(Relatorio)} />
               <Route path="simulacao" element={tela(Simulacao)} />
               <Route path="assistente" element={tela(Assistente)} />
@@ -84,6 +89,7 @@ export default function App() {
               <Route index element={tela(Equipe)} />
               <Route path="aprovacoes" element={tela(Aprovacoes)} />
               <Route path="chamados" element={tela(ChamadosEquipe)} />
+              <Route path="relatorios" element={tela(RelatoriosEquipe)} />
               <Route path="feriados" element={tela(Feriados)} />
               <Route path="auditoria" element={tela(Auditoria)} />
               <Route path="conta" element={tela(ContaGestor)} />

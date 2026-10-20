@@ -31,6 +31,7 @@ from api.rotas import (
     chamados,
     cracha,
     estagiarios,
+    estagio,
     feriados,
     gestores,
     painel,
@@ -60,7 +61,8 @@ app = FastAPI(
         "registro de ponto, saldo, relatorio, simulacao, feriados, o fluxo "
         "de solicitacao de ajuste com aprovacao do gestor, o assistente de IA, "
         "o ponto rapido, os paineis do estagiario e do gestor, o login, os "
-        "chamados, a agenda com dia de prova e o cracha virtual."
+        "chamados, a agenda com dia de prova, o cracha virtual e o contrato de "
+        "estagio (termo, recesso e relatorio de atividades)."
     ),
     lifespan=ciclo_de_vida,
 )
@@ -122,6 +124,7 @@ app.include_router(auth.router, dependencies=_protegida)           # Miguel (Ent
 app.include_router(chamados.router, dependencies=_protegida)       # Miguel (Entrega 3)   - /chamados
 app.include_router(agenda.router, dependencies=_protegida)         # Miguel (Entrega 3)   - /agenda
 app.include_router(cracha.router, dependencies=_protegida)         # Miguel (Entrega 3)   - /cracha
+app.include_router(estagio.router, dependencies=_protegida)        # Miguel (Entrega 3)   - /estagio (termo, recesso, atividades)
 # -----------------------------------------------------------------------------
 
 

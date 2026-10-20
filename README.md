@@ -36,6 +36,13 @@ conversa com essa API por HTTP.
   sistema, documentos), com conversa e andamento.
 - **Crachá virtual** com QR code: quem lê o código vê se o vínculo está
   ativo, sem ver o banco de horas.
+- **Contrato e recesso:** o termo de compromisso (dias até o fim) e o
+  **recesso remunerado** de 30 dias por ano, proporcional: 2,5 dias por mês
+  completo (Lei 11.788/2008, art. 13). O estagiário pede, o gestor aprova, e
+  dia de recesso não conta como falta.
+- **Atividades e relatório semestral:** diário do que foi feito no estágio,
+  avaliado e validado pelo gestor, com ciência do estagiário e PDF para a
+  faculdade (art. 9º, VII).
 - Relatório mensal com calendário do mês (dias de prova marcados), saldo dia
   a dia, tendência do semestre e exportação em PDF e Excel.
 - Simulador "e se eu faltar / atrasar" e assistente de IA.
@@ -43,16 +50,19 @@ conversa com essa API por HTTP.
 **Gestor**
 - Visão da equipe: saldo de cada estagiário, quem está em alerta, quem
   passou do limite legal, pedidos e chamados esperando resposta.
-- Por estagiário: meta e limites, próximas provas e o crachá (desativar no
-  fim do estágio).
-- Fila de aprovações, fila de chamados (prioridade alta primeiro),
-  calendário de feriados, auditoria e cadastro de outros gestores.
+- Por estagiário: termo de compromisso (no máximo 2 anos, art. 11), meta e
+  limites, próximas provas e o crachá (desativar no fim do estágio).
+- Aviso de contrato terminando em até 30 dias.
+- Fila de aprovações (ajustes de ponto e recesso), fila de chamados
+  (prioridade alta primeiro), relatórios semestrais da equipe, calendário de
+  feriados, auditoria e cadastro de outros gestores.
 
 **Regras:** almoço mínimo de 1h; dia com almoço incompleto fica fora do
 saldo até ser corrigido; alerta de saldo negativo (−5h); aviso de limite
 legal do estágio (Lei 11.788/2008: 6h por dia, 30h por semana); em dia de
 prova a meta e o limite do dia caem pela metade; aviso de crédito antigo
-perto de vencer; feriado não conta como falta.
+perto de vencer; feriado e recesso aprovado não contam como falta; contrato
+de no máximo 2 anos; semestre validado pelo gestor fica fechado.
 
 **Segurança:** login com senha guardada em hash (PBKDF2), sessão com prazo
 de 12h, regras de acesso por perfil em toda rota, limite de tentativas de
@@ -126,10 +136,10 @@ Depois de `python popular_demo.py`, todas com a senha **`internhub123`**:
 
 | E-mail | Quem | Bom para ver |
 |---|---|---|
-| `lucas@internhub.dev` | Lucas Andrade, estagiário | Saldo positivo, dia com pendência, pedido na fila, duas provas na agenda, chamado em andamento |
-| `beatriz@internhub.dev` | Beatriz Souza, estagiária | Saldo abaixo do limite de alerta, chamado sem resposta |
+| `lucas@internhub.dev` | Lucas Andrade, estagiário | Saldo positivo, dia com pendência, pedido na fila, duas provas na agenda, chamado em andamento, recesso pedido, atividades do semestre |
+| `beatriz@internhub.dev` | Beatriz Souza, estagiária | Saldo abaixo do limite de alerta, chamado sem resposta, contrato terminando em 20 dias |
 | `rafael@internhub.dev` | Rafael Lima, estagiário | Dias acima do limite legal de 6h, chamado resolvido |
-| `carla@internhub.dev` | Carla Mendes, gestora | Equipe com os três, pedido para aprovar, fila de chamados |
+| `carla@internhub.dev` | Carla Mendes, gestora | Equipe com os três, pedido de ajuste e de recesso para aprovar, fila de chamados, semestre do Lucas para avaliar |
 
 Essas senhas são só da demonstração. Para uma conta nova, use **Criar conta**
 na tela de entrada (estagiário). O primeiro gestor de um banco vazio se
@@ -145,6 +155,8 @@ cadastra pela tela de entrada; os próximos são cadastrados por um gestor, em
 | **Agenda** | Cadastre provas, aulas, reuniões e entregas. **Google Agenda** abre o evento já preenchido no Google; **Baixar .ics** exporta todos (Google Agenda › Configurações › Importar). |
 | **Solicitações** | Escolha o dia, o horário a corrigir, o horário certo e a justificativa. O pedido vai para o gestor; a lista mostra a resposta e o comprovante em PDF. |
 | **Chamados** | **Novo chamado** com assunto, categoria, prioridade e descrição. A conversa com o gestor fica no chamado. |
+| **Contrato e recesso** | Dias até o fim do contrato e o saldo de recesso (direito, aprovado, pedido, disponível). **Pedir recesso** escolhe o período; dá para cancelar enquanto o gestor não responde. |
+| **Atividades** | Registre o que fez (uma linha por semana já basta). Quando o gestor validar o semestre, clique em **Estou ciente**; **PDF para a faculdade** gera o relatório. |
 | **Relatório** | Horas, faltas e saldo do mês, calendário (com "P" nos dias de prova), gráficos, **PDF** e **Excel**. |
 | **Simulação** | Arraste os controles de faltas e atrasos: o saldo projetado aparece na hora. Nada é gravado. |
 | **Assistente** | Pergunte sobre saldo, semana, pendências, meses anteriores ou cenários ("E se eu faltar 2 dias?"). |
@@ -155,8 +167,9 @@ cadastra pela tela de entrada; os próximos são cadastrados por um gestor, em
 
 | Tela | Como usar |
 |---|---|
-| **Equipe** | Situação de cada estagiário. **Gerenciar** abre meta e limites, próximas provas e o crachá. |
-| **Aprovações** | **Aprovar** aplica o horário no registro e recalcula o saldo; **Rejeitar** fecha o pedido sem mexer no registro. |
+| **Equipe** | Situação de cada estagiário (inclui contrato terminando e recesso a aprovar). **Gerenciar** abre o termo de compromisso, meta e limites, próximas provas e o crachá. |
+| **Aprovações** | Ajustes de ponto: **Aprovar** aplica o horário e recalcula o saldo; **Rejeitar** não mexe no registro. Abaixo, os pedidos de recesso. |
+| **Relatórios semestrais** | Escolha o estagiário, leia as atividades, escreva a avaliação e **Validar semestre** (fecha o semestre). **PDF para a faculdade** sai pronto. |
 | **Chamados** | Fila da equipe. Responder já coloca o chamado "em andamento"; **Marcar resolvido** fecha. |
 | **Feriados** | Cadastre um dia não útil ou use os atalhos dos feriados nacionais. |
 | **Auditoria** | Pedidos da equipe, com quem pediu, quem decidiu e quando. |
@@ -164,6 +177,67 @@ cadastra pela tela de entrada; os próximos são cadastrados por um gestor, em
 
 O botão **Tema claro / Tema escuro** fica na barra lateral, e **Sair**
 encerra a sessão.
+
+## Contrato de estágio: o que o sistema controla e por quê
+
+Até a Entrega 3 o InternHub controlava as **horas**. Estas três partes
+controlam o **estágio**, naquilo que a Lei 11.788/2008 exige da empresa. Cada
+uma foi escolhida porque a lei manda; nenhuma é enfeite.
+
+### Termo de compromisso (art. 11)
+
+- **O que faz:** o gestor cadastra o início e o fim do contrato, a
+  instituição de ensino e o curso. Um termo de mais de 2 anos é recusado,
+  exceto para pessoa com deficiência. Faltando 30 dias para o fim, aparece um
+  aviso no painel do gestor, na linha do estagiário na Equipe e no Início do
+  estagiário.
+- **Por quê:** a lei proíbe estágio de mais de 2 anos na mesma empresa, e o
+  sistema não sabia quando o contrato terminava. Ninguém via o fim chegando.
+- **Por que só o gestor cadastra:** as datas fazem parte do contrato
+  assinado, assim como a meta de horas.
+
+### Recesso remunerado (art. 13)
+
+- **O que faz:** o estagiário acumula 2,5 dias de recesso por mês completo
+  de estágio (30 por ano), pede um período e o gestor aprova ou recusa na
+  tela de Aprovações. O sistema recusa pedido no passado, com mais dias do
+  que a pessoa tem, depois do fim do contrato ou em cima de outro pedido.
+- **Por quê:** a lei garante 30 dias de recesso por ano, proporcional para
+  quem tem menos de um ano de estágio. Antes, se o estagiário tirasse esses
+  dias, o relatório mensal contava cada um como **falta**. Agora, dia de
+  recesso aprovado não é falta e aparece marcado no calendário do relatório.
+- **Por que o gestor aprova:** é o mesmo princípio do ajuste de ponto — quem
+  pede não decide.
+
+### Relatório de atividades semestral (art. 9º, VII)
+
+- **O que faz:** o estagiário registra o que fez num diário de atividades; o
+  gestor lê, escreve a avaliação e valida o semestre; o estagiário confirma
+  que está ciente; sai um PDF pronto para entregar à faculdade.
+- **Por quê:** a lei obriga a empresa a enviar à instituição de ensino, no
+  mínimo a cada 6 meses, um relatório de atividades "com vista obrigatória ao
+  estagiário". A validação do gestor e a ciência do estagiário existem para
+  cumprir exatamente essas duas exigências.
+- **Por que o semestre validado fica fechado:** o PDF vai para a faculdade.
+  Se as atividades pudessem mudar depois, o documento enviado não bateria
+  com o que está no sistema.
+
+### Decisões técnicas
+
+- **Tabelas novas, sem colunas novas nas antigas** (`termos_compromisso`,
+  `pedidos_recesso`, `atividades_estagio`, `relatorios_atividades`): o
+  `create_all` do SQLAlchemy cria tabelas que faltam, mas não acrescenta
+  colunas. Assim quem já tem o banco não perde nada.
+- **Recesso somado no banco:** os dias de cada pedido são calculados com
+  `func.julianday()` dentro de `func.sum()`, agrupados por status com
+  `group_by()`, sem trazer os pedidos para o Python.
+- **Um relatório por semestre:** uma `UniqueConstraint` (estagiário, ano,
+  semestre) garante isso no próprio banco.
+- **Ficou para depois:** a central de notificações foi avaliada e adiada
+  porque, diferente das três acima, não tem base legal.
+
+O registro dessas decisões, com data, está em
+[`docs/decisoes.md`](docs/decisoes.md) (fase 3c).
 
 ## Assistente de IA
 
@@ -193,7 +267,7 @@ Na raiz do projeto, com o `.venv` ativado:
 pytest -v
 ```
 
-São 82 casos em cinco arquivos, todos num banco em memória (não mexem no
+São 90 casos em seis arquivos, todos num banco em memória (não mexem no
 `dados.db`):
 
 - `testes/test_calculo.py` — regras do dia (horas trabalhadas, almoço
@@ -213,6 +287,11 @@ São 82 casos em cinco arquivos, todos num banco em memória (não mexem no
   só vai para a frente), dia de prova (meta e limite pela metade no saldo,
   no relatório e na tendência), exportação `.ics` e crachá (verificação sem
   login, reemissão, desativação).
+- `testes/test_estagio.py` — termo de no máximo 2 anos (e a exceção para
+  pessoa com deficiência), aviso de fim de contrato, recesso proporcional,
+  pedido de recesso (saldo, datas, choque de períodos), aprovação só pelo
+  gestor responsável, recesso que não vira falta e o fluxo do relatório
+  semestral (validação, semestre fechado, ciência e PDF).
 
 Vários testes nasceram de defeitos encontrados e corrigidos (o docstring de
 cada um conta o caso): faltas contadas antes do primeiro ponto, aviso de
@@ -239,7 +318,7 @@ tendência mês a mês usa a mesma conta agrupada por mês (`saldo_por_mes`).
 | 2 | `declarative_base` | Classe `Base` de todos os modelos | `banco/conexao.py` → `modelos/` |
 | 3 | `sessionmaker` / `Session` | Uma sessão por requisição (`Depends(get_session)`) | `banco/conexao.py`, todas as rotas |
 | 4 | `Base.metadata.create_all` | Cria as tabelas quando a API sobe | `banco/conexao.py` |
-| 5 | `Column` e tipos (`Integer`, `String`, `Float`, `Boolean`, `Date`, `Time`, `DateTime`) com `nullable`, `unique`, `index`, `default` | As 12 tabelas | `modelos/` |
+| 5 | `Column` e tipos (`Integer`, `String`, `Float`, `Boolean`, `Date`, `Time`, `DateTime`) com `nullable`, `unique`, `index`, `default` | As 16 tabelas | `modelos/` |
 | 6 | `ForeignKey` (com `unique=True` no 1-para-1) | Registro → estagiário, configuração/crachá/conta → estagiário, chamado → estagiário e gestor | `modelos/` |
 | 7 | `relationship` com `back_populates`, `uselist=False`, `cascade`, `order_by` | Navegar entre estagiário, conta, configuração, registros, solicitações, chamados e mensagens | `modelos/` |
 | 8 | `query().filter()` / `filter_by()` | Buscar por pessoa, data, status e token | rotas e serviços |
@@ -254,7 +333,9 @@ tendência mês a mês usa a mesma conta agrupada por mês (`saldo_por_mes`).
 | 17 | `is_not(None)` / `is_(None)` | Só dias completos no saldo; achar dias com pendência | `servicos/saldo.py`, `servicos/painel.py` |
 | 18 | `limit()` | Os últimos dias do painel | `servicos/painel.py` |
 | 19 | `query().filter().delete()` | Apagar sessões vencidas ou derrubadas num comando só | `servicos/autenticacao.py` |
-| 20 | `add`, `add_all`, `delete`, `commit`, `rollback`, `refresh` + `SQLAlchemyError` | Gravar com integridade: ou grava tudo, ou nada (estagiário + configuração + conta numa transação) | rotas de criação, serviços, `popular_demo.py` |
+| 20 | `UniqueConstraint` em `__table_args__` | Um relatório semestral só por estagiário e semestre | `modelos/estagio.py` |
+| 21 | `func.julianday()` dentro de `func.sum()` + `group_by()` | Dias de recesso somados no banco, por status | `servicos/estagio.py` |
+| 22 | `add`, `add_all`, `delete`, `commit`, `rollback`, `refresh` + `SQLAlchemyError` | Gravar com integridade: ou grava tudo, ou nada (estagiário + configuração + conta numa transação) | rotas de criação, serviços, `popular_demo.py` |
 
 ## Estrutura
 
@@ -265,10 +346,13 @@ api/              # FastAPI: app, rotas por modulo, schemas Pydantic,
 banco/            # engine e sessao do SQLAlchemy (conexao.py) + dados.db
 modelos/          # classes mapeadas: Estagiario, Gestor, Configuracao,
                   # RegistroPonto, SolicitacaoAjuste, Feriado, Usuario,
-                  # SessaoLogin, Chamado, MensagemChamado, Compromisso, Cracha
+                  # SessaoLogin, Chamado, MensagemChamado, Compromisso, Cracha,
+                  # TermoCompromisso, PedidoRecesso, AtividadeEstagio,
+                  # RelatorioAtividades
 servicos/         # regras de negocio: calculo, saldo, ponto, painel,
                   # simulador, vencimento, feriados, solicitacao, assistente,
-                  # exportacoes, autenticacao, chamados, agenda, cracha
+                  # exportacoes, autenticacao, chamados, agenda, cracha,
+                  # estagio (termo, recesso, relatorio semestral)
 testes/           # pytest (conftest.py tem o banco em memoria e os ajudantes de login)
 frontend/         # interface em React (Vite), consome a API por HTTP
 docs/             # registro das decisoes do grupo (decisoes.md)
@@ -310,5 +394,6 @@ ou trabalhista e compensação de horas (folga usando o crédito do banco).
 A primeira interface foi feita em Streamlit e foi substituída pelo frontend
 em React (o código antigo continua no histórico do Git). O login com senha
 estava fora do escopo na Entrega 1 e entrou na Entrega 3, junto com os
-chamados, a agenda e o crachá. As decisões do grupo, com data e motivo,
+chamados, a agenda, o crachá e o contrato de estágio (termo, recesso e
+relatório de atividades). As decisões do grupo, com data e motivo,
 estão em [`docs/decisoes.md`](docs/decisoes.md).

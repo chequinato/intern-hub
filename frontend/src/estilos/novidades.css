@@ -247,6 +247,76 @@
 .lista-pessoas-simples li:last-child { border-bottom: none; }
 .lista-pessoas-simples li .selo { margin-left: auto; }
 
+/* -- Contrato, recesso e atividades (Entrega 3, Lei 11.788/2008) ---------------------- */
+
+.recesso-numeros { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+.recesso-principal { display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+.recesso-principal span, .contrato-restante span { font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--texto-3); }
+.recesso-principal b { font-size: 56px; line-height: 1; font-weight: 780; letter-spacing: -.05em; color: var(--credito); }
+.recesso-principal small { font-size: 12.5px; color: var(--texto-3); }
+.recesso-numeros .lista-regras { flex: 1; min-width: 200px; }
+.contrato-restante { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.contrato-restante b { font-size: 52px; line-height: 1; font-weight: 780; letter-spacing: -.05em; }
+.contrato-datas { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--texto-3); }
+.lista-recessos { list-style: none; }
+.lista-recessos li { display: flex; align-items: center; gap: 14px; padding: 13px 20px; border-bottom: 1px solid var(--borda); animation: subir var(--t-medio) var(--curva) both; animation-delay: calc(var(--i, 0) * 30ms); }
+.lista-recessos li:last-child { border-bottom: none; }
+.recesso-periodo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: var(--texto-2); }
+.recesso-periodo b { font-size: 15px; color: var(--texto); font-family: var(--fonte-mono); }
+.previa-mudanca--alerta { border-color: var(--alerta-borda); color: var(--alerta); }
+.previa-mudanca--alerta b { color: var(--alerta); }
+
+.recesso-pedido { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--borda); flex-wrap: wrap; }
+.recesso-pedido:last-child { border-bottom: none; }
+.recesso-pedido .recesso-periodo { min-width: 180px; }
+
+.etapas-semestre { list-style: none; display: flex; flex-direction: column; gap: 0; position: relative; }
+.etapas-semestre li { display: flex; gap: 12px; align-items: flex-start; position: relative; padding-bottom: 14px; }
+.etapas-semestre li:last-child { padding-bottom: 0; }
+.etapas-semestre li:not(:last-child)::before { content: ""; position: absolute; left: 13px; top: 28px; bottom: 0; width: 2px; background: var(--borda); }
+.etapas-semestre li.feita:not(:last-child)::before { background: var(--marca-500); }
+.etapa-numero {
+  width: 28px; height: 28px; flex: none; border-radius: 50%; display: grid; place-items: center;
+  border: 2px solid var(--borda-forte); font: 700 12px/1 var(--fonte-mono); color: var(--texto-3); background: var(--superficie);
+}
+.etapa-numero svg { width: 14px; height: 14px; }
+.etapas-semestre li.feita .etapa-numero { background: var(--marca-500); border-color: var(--marca-500); color: var(--sobre-marca); }
+.etapas-semestre b { display: block; font-size: 13.5px; font-weight: 620; }
+.etapas-semestre span { font-size: 12px; color: var(--texto-3); }
+
+.nova-atividade { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 14px 20px; border-bottom: 1px solid var(--borda); background: var(--superficie-2); }
+.nova-atividade input, .nova-atividade textarea {
+  width: 100%; border: 1px solid var(--borda-forte); border-radius: var(--raio-sm); background: var(--superficie); color: var(--texto); font-size: 13.5px;
+}
+.nova-atividade input { height: 38px; padding: 0 10px; font-family: var(--fonte-mono); }
+.nova-atividade textarea { min-height: 38px; padding: 9px 10px; resize: vertical; line-height: 1.45; }
+.nova-atividade input:focus, .nova-atividade textarea:focus { outline: none; border-color: var(--marca-500); box-shadow: var(--foco); }
+.nova-atividade .botao { height: 38px; }
+.nova-atividade .aviso { grid-column: 1 / -1; }
+.diario { list-style: none; }
+.diario li { display: flex; gap: 14px; align-items: flex-start; padding: 12px 20px; border-bottom: 1px solid var(--borda); animation: subir var(--t-medio) var(--curva) both; animation-delay: calc(var(--i, 0) * 25ms); }
+.diario li:last-child { border-bottom: none; }
+.diario p { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.55; color: var(--texto-2); padding-top: 3px; }
+.diario--compacto li { padding: 8px 0; }
+.diario--compacto .data-bloco { width: 46px; padding: 4px 0; }
+
+.lista-pessoas-simples--clicavel li { padding: 0; }
+.lista-pessoas-simples--clicavel button {
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 20px; text-align: left; font-size: 14px;
+  border-left: 3px solid transparent; transition: background var(--t-rapido) var(--curva);
+}
+.lista-pessoas-simples--clicavel button:hover { background: var(--superficie-2); }
+.lista-pessoas-simples--clicavel button.ativo { background: var(--superficie-2); border-left-color: var(--marca-500); }
+.lista-pessoas-simples--clicavel .selo, .lista-pessoas-simples--clicavel .esqueleto { margin-left: auto; }
+
+.caixa-marcar { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--texto-2); cursor: pointer; }
+.caixa-marcar input { width: 16px; height: 16px; accent-color: var(--marca-500); }
+.cal-dia--recesso { background: var(--credito-fundo); border-color: var(--credito-borda); border-style: dashed; color: var(--credito); }
+
+@media (max-width: 760px) {
+  .nova-atividade { grid-template-columns: 1fr; }
+}
+
 /* -- Responsivo e impressao ----------------------------------------------------- */
 
 @media (max-width: 1100px) {

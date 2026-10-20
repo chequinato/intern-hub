@@ -101,7 +101,9 @@ const ACENTOS = {
   credito: "crédito", decisao: "decisão", gestao: "gestão", minimo: "mínimo", ha: "há",
   sera: "será", tambem: "também", periodo: "período", util: "útil",
   sessao: "sessão", permissao: "permissão", so: "só", proprio: "próprio", propria: "própria",
-  inicio: "início", faca: "faça", codigo: "código", cracha: "crachá",
+  inicio: "início", faca: "faça", codigo: "código", cracha: "crachá", estagio: "estágio",
+  disponiveis: "disponíveis", ciencia: "ciência", avaliacao: "avaliação",
+  relatorio: "relatório", ultimo: "último",
 };
 
 export function acentuar(texto) {
@@ -111,9 +113,10 @@ export function acentuar(texto) {
       if (!trocada) return palavra;
       return palavra[0] === palavra[0].toUpperCase() ? trocada[0].toUpperCase() + trocada.slice(1) : trocada;
     })
-    // 2026-10-13 -> 13/10/2026 e 2.17h -> 2,17h (formato brasileiro)
+    // 2026-10-13 -> 13/10/2026 e 2.17h -> 2,17h (formato brasileiro). So
+    // decimais de ate 2 casas: "Lei 11.788" continua com ponto.
     .replace(/(\d{4})-(\d{2})-(\d{2})/g, "$3/$2/$1")
-    .replace(/(\d)\.(\d)/g, "$1,$2");
+    .replace(/(\d)\.(\d{1,2})(?!\d)/g, "$1,$2");
 }
 
 function mensagemDoErro(resposta, corpo) {
@@ -142,6 +145,7 @@ export const api = {
   get: (caminho, params) => chamar("GET", caminho, { params }),
   post: (caminho, payload) => chamar("POST", caminho, { payload }),
   patch: (caminho, payload) => chamar("PATCH", caminho, { payload }),
+  put: (caminho, payload) => chamar("PUT", caminho, { payload }),
   delete: (caminho) => chamar("DELETE", caminho),
 
   // Baixa um arquivo (PDF/Excel) e devolve o Blob pronto pra download.

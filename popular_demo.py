@@ -11,7 +11,10 @@ ver o sistema com dados, sem precisar cadastrar tudo na mao:
 - os feriados nacionais do periodo;
 - um pedido aprovado e um rejeitado, para a auditoria ter historico;
 - (Entrega 3) contas de login, chamados ao gestor e a agenda do Lucas, com
-  duas provas e uma aula.
+  duas provas e uma aula;
+- (Entrega 3) termos de compromisso (o da Beatriz termina em 20 dias, para
+  o aviso de fim de contrato aparecer), um pedido de recesso do Lucas e as
+  atividades dele no semestre.
 
 Os dias sao contados a partir de hoje (as ultimas semanas uteis), entao a
 demonstracao sempre parece recente, nao importa quando o script rodar.
@@ -21,7 +24,7 @@ Rodar uma vez, na raiz do projeto, com a API parada ou rodando:
 
 Com o banco vazio, cria tudo. Com o banco ja preenchido (de antes do
 login), nao mexe no que existe: so cria a conta de quem ainda nao tem e,
-se ainda nao houver nenhum chamado nem compromisso, acrescenta os de
+se ainda nao houver nenhum chamado, compromisso ou termo, acrescenta os de
 exemplo. Para comecar do zero, apague banco/dados.db e rode de novo.
 
 Contas criadas (senha de todas: internhub123):
@@ -39,7 +42,10 @@ from datetime import date, datetime, time, timedelta
 import unicodedata
 
 from banco.conexao import SessionLocal, criar_tabelas
+from dateutil.relativedelta import relativedelta
+
 from modelos import (
+    AtividadeEstagio,
     Chamado,
     Compromisso,
     Configuracao,
@@ -47,8 +53,10 @@ from modelos import (
     Feriado,
     Gestor,
     MensagemChamado,
+    PedidoRecesso,
     RegistroPonto,
     SolicitacaoAjuste,
+    TermoCompromisso,
     Usuario,
 )
 from modelos.usuario import PERFIL_ESTAGIARIO, PERFIL_GESTOR
@@ -208,6 +216,57 @@ def completar_novidades(session) -> bool:
     return True
 
 
+ATIVIDADES_LUCAS = [
+    "Configuração do ambiente e leitura da documentação do sistema interno.",
+    "Correção de dois defeitos na tela de cadastro de clientes.",
+    "Testes automatizados do módulo de faturamento (pytest).",
+    "Reunião de alinhamento com a equipe e estimativa das tarefas da sprint.",
+    "Consulta SQL para o relatório mensal de vendas, revisada pela Carla.",
+    "Documentação da API interna de pedidos.",
+]
+
+
+def completar_estagio(session) -> bool:
+    """Termos, recesso e atividades de exemplo, se ainda nao houver termo."""
+    if session.query(TermoCompromisso).first() is not None:
+        return False
+    hoje = date.today()
+    pessoas = {e.nome.split()[0]: e for e in session.query(Estagiario).all()}
+
+    def primeiro_ponto(estagiario):
+        datas = [r.data for r in estagiario.registros]
+        return min(datas) if datas else hoje - timedelta(days=90)
+
+    termos = {
+        "Lucas": lambda inicio: inicio + relativedelta(years=1),
+        "Beatriz": lambda inicio: hoje + timedelta(days=20),      # aviso de fim de contrato
+        "Rafael": lambda inicio: inicio + relativedelta(months=18),
+    }
+    for nome, fim in termos.items():
+        estagiario = pessoas.get(nome)
+        if estagiario is None:
+            continue
+        inicio = primeiro_ponto(estagiario)
+        estagiario.termo = TermoCompromisso(
+            data_inicio=inicio, data_fim=fim(inicio),
+            instituicao_ensino="UniAnchieta", curso="Ciência da Computação",
+        )
+
+    lucas = pessoas.get("Lucas")
+    if lucas is not None:
+        # 3 dias de recesso no mes que vem, esperando a Carla.
+        comeco = proximo_dia_util(hoje, 15)
+        session.add(PedidoRecesso(
+            estagiario=lucas, data_inicio=comeco, data_fim=comeco + timedelta(days=2),
+            observacao="Semana de provas na faculdade.",
+        ))
+        # Uma atividade por semana, nas ultimas semanas.
+        for indice, texto in enumerate(ATIVIDADES_LUCAS):
+            dia = hoje - timedelta(days=7 * (len(ATIVIDADES_LUCAS) - indice))
+            session.add(AtividadeEstagio(estagiario=lucas, data=dia, descricao=texto))
+    return True
+
+
 def main() -> None:
     criar_tabelas()
     session = SessionLocal()
@@ -217,13 +276,14 @@ def main() -> None:
         try:
             contas = completar_contas(session)
             novidades = completar_novidades(session)
+            estagio = completar_estagio(session)
             session.commit()
         except Exception:
             session.rollback()
             raise
         finally:
             session.close()
-        if not contas and not novidades:
+        if not contas and not novidades and not estagio:
             print("O banco ja tem estagiarios cadastrados - nada foi alterado.")
             return
         for nome, email in contas:
@@ -232,6 +292,8 @@ def main() -> None:
             print(f"  senha de todas as contas criadas: {SENHA_DEMO}")
         if novidades:
             print("  chamados e agenda de exemplo acrescentados.")
+        if estagio:
+            print("  termos de compromisso, recesso e atividades de exemplo acrescentados.")
         return
 
     carla = Gestor(nome="Carla Mendes")
@@ -297,6 +359,7 @@ def main() -> None:
         session.flush()
         contas = completar_contas(session)
         completar_novidades(session)
+        completar_estagio(session)
         session.commit()
     except Exception:
         session.rollback()

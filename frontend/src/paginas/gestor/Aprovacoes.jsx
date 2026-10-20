@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { ArrowRight, Check, ClipboardCheck, LoaderCircle, Quote, X } from "lucide-react";
+import { ArrowRight, Check, ClipboardCheck, LoaderCircle, Palmtree, Quote, X } from "lucide-react";
 import { api } from "../../api/cliente";
 import { useApiState } from "../../useApiState";
 import { useNotificar } from "../../components/Notificacoes";
@@ -10,6 +10,9 @@ import { diaDaSemana, formatarData, formatarDataHora, formatarSaldo, hora, NOMES
 // Fila do gestor: pedidos pendentes dos estagiarios sob a gestao dele.
 // Aprovar aplica o horario no registro e devolve o saldo novo; rejeitar so
 // fecha o pedido, sem mexer no registro (servicos/solicitacao.py).
+//
+// Entrega 3: a mesma tela mostra os pedidos de recesso (Lei 11.788/2008,
+// art. 13), com o saldo de dias do estagiario ao lado.
 export function Aprovacoes() {
   const { gestorId, recarregar } = useOutletContext();
   const notificar = useNotificar();
@@ -44,7 +47,7 @@ export function Aprovacoes() {
       <div className="cabecalho-pagina entra">
         <div>
           <h1>Fila de aprovações</h1>
-          <p>Pedidos de ajuste de ponto esperando a sua decisão.</p>
+          <p>Pedidos de ajuste de ponto e de recesso esperando a sua decisão.</p>
         </div>
         {pedidos.length > 0 && <span className="selo selo--atencao" style={{ height: 30, fontSize: 13 }}>{pedidos.length} pendente(s)</span>}
       </div>
@@ -99,6 +102,64 @@ export function Aprovacoes() {
           })}
         </div>
       )}
+
+      <FilaDeRecesso aoDecidir={recarregar} />
+    </>
+  );
+}
+
+// Pedidos de recesso da equipe (Entrega 3). So aparece quando ha pedido.
+function FilaDeRecesso({ aoDecidir }) {
+  const notificar = useNotificar();
+  const fila = useApiState(() => api.get("/estagio/recessos/pendentes"), []);
+  const [decidindo, setDecidindo] = useState(null);
+  const pedidos = fila.dados || [];
+
+  async function decidir(pedido, status) {
+    setDecidindo(pedido.id);
+    try {
+      await api.patch(`/estagio/recessos/${pedido.id}`, { status });
+      notificar[status === "aprovado" ? "sucesso" : "info"](
+        `Recesso de ${pedido.estagiario_nome} ${status === "aprovado" ? "aprovado" : "recusado"}`,
+        `${pedido.dias} dia(s), de ${formatarData(pedido.data_inicio)} a ${formatarData(pedido.data_fim)}.`
+      );
+      fila.setDados((lista) => lista.filter((p) => p.id !== pedido.id));
+      aoDecidir();
+    } catch (e) {
+      notificar.erro("Não foi possível registrar a decisão", e.message);
+    } finally {
+      setDecidindo(null);
+    }
+  }
+
+  if (pedidos.length === 0) return null;
+  return (
+    <>
+      <div className="espaco" />
+      <section className="cartao entra">
+        <div className="cartao-cabeca">
+          <h2><Palmtree />Pedidos de recesso</h2>
+          <span className="sub">Lei 11.788/2008, art. 13 · 2,5 dias por mês de estágio</span>
+        </div>
+        <ul className="lista-recessos">
+          {pedidos.map((p) => (
+            <li key={p.id} className="recesso-pedido">
+              <Avatar nome={p.estagiario_nome} tamanho={34} />
+              <div className="recesso-periodo">
+                <b>{formatarData(p.data_inicio).slice(0, 5)} → {formatarData(p.data_fim).slice(0, 5)}</b>
+                <span>{p.estagiario_nome} · {p.dias} dia(s) · pedido em {formatarDataHora(p.pedido_em)}</span>
+                {p.observacao && <span className="texto-3">{p.observacao}</span>}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" className="botao botao--perigo botao--pequeno" onClick={() => decidir(p, "rejeitado")} disabled={decidindo === p.id}><X />Recusar</button>
+                <button type="button" className="botao botao--sucesso botao--pequeno" onClick={() => decidir(p, "aprovado")} disabled={decidindo === p.id}>
+                  {decidindo === p.id ? <LoaderCircle className="girando" /> : <Check />}Aprovar
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
     </>
   );
 }

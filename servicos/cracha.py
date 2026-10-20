@@ -25,7 +25,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from modelos import Cracha, Estagiario, RegistroPonto
+from modelos import Cracha, Estagiario, RegistroPonto, TermoCompromisso
 
 
 def _novo_codigo() -> str:
@@ -61,7 +61,11 @@ def definir_ativo(cracha: Cracha, ativo: bool, session: Session) -> Cracha:
 
 
 def inicio_do_estagio(estagiario_id: int, session: Session) -> date | None:
-    """A data do primeiro ponto - o mesmo func.min() do relatorio (Pietro)."""
+    """A data do termo de compromisso (modelos/estagio.py); sem termo, a do
+    primeiro ponto - o mesmo func.min() do relatorio (Pietro)."""
+    termo = session.query(TermoCompromisso).filter_by(estagiario_id=estagiario_id).first()
+    if termo is not None:
+        return termo.data_inicio
     return (
         session.query(func.min(RegistroPonto.data))
         .filter(RegistroPonto.estagiario_id == estagiario_id)

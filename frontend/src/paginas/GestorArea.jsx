@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { CalendarX2, ClipboardCheck, History, LifeBuoy, UserCog, Users } from "lucide-react";
+import { CalendarX2, ClipboardCheck, History, LifeBuoy, NotebookPen, UserCog, Users } from "lucide-react";
 import { api } from "../api/cliente";
 import { useApiState } from "../useApiState";
 import { Estrutura } from "../components/Estrutura";
@@ -31,8 +31,9 @@ export function GestorArea() {
 
   const itens = [
     { rota: "", rotulo: "Equipe", titulo: "Visão da equipe", icone: Users, grupo: "Visão geral" },
-    { rota: "aprovacoes", rotulo: "Aprovações", titulo: "Fila de aprovações", icone: ClipboardCheck, grupo: "Gestão", contador: painel.dados?.pedidos_na_fila },
+    { rota: "aprovacoes", rotulo: "Aprovações", titulo: "Fila de aprovações", icone: ClipboardCheck, grupo: "Gestão", contador: (painel.dados?.pedidos_na_fila || 0) + (painel.dados?.recessos_pendentes || 0) },
     { rota: "chamados", rotulo: "Chamados", titulo: "Chamados da equipe", icone: LifeBuoy, grupo: "Gestão", contador: painel.dados?.chamados_sem_resposta },
+    { rota: "relatorios", rotulo: "Relatórios semestrais", titulo: "Relatórios de atividades", icone: NotebookPen, grupo: "Gestão" },
     { rota: "feriados", rotulo: "Feriados", titulo: "Calendário de feriados", icone: CalendarX2, grupo: "Gestão" },
     { rota: "auditoria", rotulo: "Auditoria", titulo: "Histórico de pedidos", icone: History, grupo: "Gestão" },
     { rota: "conta", rotulo: "Conta e gestores", titulo: "Conta e gestores", icone: UserCog, grupo: "Conta" },

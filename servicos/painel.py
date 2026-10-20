@@ -32,6 +32,7 @@ from modelos.solicitacao_ajuste import STATUS_PENDENTE
 from servicos.agenda import datas_de_prova, listar_compromissos, meta_do_dia
 from servicos.calculo import calcular_horas_trabalhadas, verificar_pendencia_almoco
 from servicos.chamados import contagem_por_status
+from servicos.estagio import recessos_pendentes_da_equipe, saldo_de_recesso, situacao_do_contrato
 from servicos.ponto import proxima_marcacao
 from servicos.saldo import calcular_saldo_acumulado, saldo_por_mes, verificar_alerta
 from servicos.vencimento import verificar_vencimento
@@ -145,6 +146,8 @@ def resumo_estagiario(estagiario: Estagiario, hoje: date, session: Session) -> d
             estagiario.id, session, hoje + timedelta(days=1), hoje + timedelta(days=14)
         )[:5],
         "chamados_em_aberto": chamados["aberto"] + chamados["em_andamento"],
+        "contrato": situacao_do_contrato(estagiario, hoje),
+        "recesso": saldo_de_recesso(estagiario, hoje, session),
         "saldo_acumulado": saldo,
         "em_alerta": verificar_alerta(saldo, config["limite_alerta"]),
         "horas_semana": horas_da_semana(estagiario.id, hoje, session),
@@ -211,6 +214,8 @@ def resumo_equipe(gestor_id: int, hoje: date, session: Session) -> dict:
             "pendencias": len(_pendencias(estagiario.id, session)),
             "pedidos_pendentes": _pedidos_pendentes(estagiario.id, session),
             "ultimo_ponto": ultimo,
+            "dias_para_fim_contrato": situacao_do_contrato(estagiario, hoje).get("dias_restantes"),
+            "recessos_pendentes": sum(1 for r in estagiario.recessos if r.status == "pendente"),
         })
 
     chamados = contagem_por_status(session, gestor_id=gestor_id)
@@ -220,6 +225,11 @@ def resumo_equipe(gestor_id: int, hoje: date, session: Session) -> dict:
         "hoje": hoje,
         "chamados_sem_resposta": chamados["aberto"],
         "chamados_em_andamento": chamados["em_andamento"],
+        "contratos_vencendo": sum(
+            1 for l in linhas
+            if l["dias_para_fim_contrato"] is not None and 0 <= l["dias_para_fim_contrato"] <= 30
+        ),
+        "recessos_pendentes": len(recessos_pendentes_da_equipe(gestor_id, session)),
         "total_estagiarios": len(linhas),
         "em_alerta": sum(1 for l in linhas if l["em_alerta"]),
         "acima_limite_semanal": sum(1 for l in linhas if l["acima_limite_semanal"]),

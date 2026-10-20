@@ -47,6 +47,13 @@ export function Inicio() {
             </div>
           </div>
         )}
+        {painel.contrato?.vencendo && (
+          <div className="aviso aviso--atencao entra">
+            <CalendarDays />
+            <div><strong>Seu contrato de estágio termina em {painel.contrato.dias_restantes} dia(s).</strong> Veja em Contrato e recesso.</div>
+            <div className="acoes"><Link className="botao botao--pequeno" to="estagio">Ver contrato <ArrowRight /></Link></div>
+          </div>
+        )}
         {painel.em_alerta && (
           <div className="aviso aviso--alerta entra">
             <CircleAlert />

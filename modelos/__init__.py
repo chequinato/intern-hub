@@ -12,6 +12,7 @@ from modelos.compromisso import Compromisso
 from modelos.configuracao import Configuracao
 from modelos.cracha import Cracha
 from modelos.estagiario import Estagiario
+from modelos.estagio import AtividadeEstagio, PedidoRecesso, RelatorioAtividades, TermoCompromisso
 from modelos.feriado import Feriado
 from modelos.gestor import Gestor
 from modelos.registro_ponto import RegistroPonto
@@ -19,6 +20,7 @@ from modelos.solicitacao_ajuste import SolicitacaoAjuste
 from modelos.usuario import SessaoLogin, Usuario
 
 __all__ = [
+    "AtividadeEstagio",
     "Chamado",
     "Compromisso",
     "Configuracao",
@@ -27,8 +29,11 @@ __all__ = [
     "Feriado",
     "Gestor",
     "MensagemChamado",
+    "PedidoRecesso",
     "RegistroPonto",
+    "RelatorioAtividades",
     "SessaoLogin",
     "SolicitacaoAjuste",
+    "TermoCompromisso",
     "Usuario",
 ]

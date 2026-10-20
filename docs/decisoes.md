@@ -75,6 +75,20 @@ item novo precisava de um motivo ligado a esse foco.
 | 17/10 | **Crachá virtual com QR code** e página pública de verificação. A página mostra só nome, gestor e situação; o crachá pode ser reemitido (o código antigo para de valer) e desativado pelo gestor. | Comprovar o vínculo de estágio na portaria, no RH ou na faculdade sem expor o banco de horas. O código é aleatório, então não dá para descobrir o crachá de outra pessoa trocando um número no endereço. QR em SVG com a lib `qrcode`, sem Pillow. | Miguel |
 | 17/10 | As tabelas novas (conta, sessão, chamado, mensagem, compromisso, crachá) ficam **separadas**, sem coluna nova nas tabelas antigas. | O `create_all` cria tabelas que faltam, mas não acrescenta colunas. Assim quem já tem o banco não perde nada: `popular_demo.py` só cria as contas que faltam. | Miguel |
 
+## Fase 3c — Contrato de estágio (20/10)
+
+Até aqui o sistema controlava as **horas**. Faltava controlar o **estágio**
+naquilo que a Lei 11.788/2008 exige da empresa. Os três itens abaixo foram
+escolhidos justamente por terem a lei como motivo.
+
+| Data | Decisão | Motivo | Quem |
+|---|---|---|---|
+| 20/10 | **Termo de compromisso** com início e fim, cadastrado pelo gestor; no máximo 2 anos, salvo pessoa com deficiência; aviso a 30 dias do fim. | Art. 11: o estágio na mesma empresa não pode passar de 2 anos. Sem a data de fim, ninguém percebia o contrato acabando. | Miguel (com o grupo) |
+| 20/10 | **Recesso remunerado:** 2,5 dias por mês completo (30 por ano), pedido pelo estagiário e aprovado pelo gestor. Dia de recesso aprovado não conta como falta. | Art. 13: 30 dias de recesso por ano, proporcional quando o estágio tem menos de um ano. O relatório contava esses dias como falta. | Miguel |
+| 20/10 | **Relatório de atividades semestral:** o estagiário registra, o gestor avalia e valida (o semestre fecha), o estagiário dá ciência; sai em PDF. | Art. 9º, VII: a empresa envia à faculdade, no mínimo a cada 6 meses, um relatório de atividades "com vista obrigatória ao estagiário". | Miguel |
+| 20/10 | Tabelas novas (`termos_compromisso`, `pedidos_recesso`, `atividades_estagio`, `relatorios_atividades`), sem coluna nova nas antigas. | Mesmo motivo do crachá: o `create_all` não acrescenta colunas, e quem já tem o banco não perde nada. | Miguel |
+| 20/10 | **Central de notificações** avaliada e deixada para depois. | Não tem base legal como os outros três; o grupo priorizou o que a lei exige. | Grupo |
+
 ## Pendente
 
 - **Roteiro da apresentação** (15 minutos divididos por papel) e **documento
